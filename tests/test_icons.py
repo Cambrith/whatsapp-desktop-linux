@@ -18,7 +18,7 @@ SOURCE = ROOT / "bin" / "whatsapp"
 def load_icons():
     source = SOURCE.read_text()
     block = textwrap.dedent(source[source.index("    # 3. Ícones oficiais"):
-                                    source.index("    # 4. Título")])
+                                    source.index("    # 4. Janela principal")])
     namespace = {"os": os, "__file__": str(SOURCE),
                  "QApplication": QApplication, "QIcon": QIcon, "QPixmap": QPixmap}
     exec(compile(block, str(SOURCE), "exec"), namespace)

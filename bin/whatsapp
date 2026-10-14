@@ -10,7 +10,7 @@ Garante que o WhatsApp execute com:
 2. Substituição total de qualquer menção residual a "ZapZap" por "WhatsApp".
 3. Ícone proporcional na bandeja com contador no canto inferior direito.
 4. Ícone proporcional da janela e barra de tarefas, sempre sem contador.
-5. O título "WhatsApp" exibido na barra superior / título da janela.
+5. Janela principal sem barras de título e menus, com atalhos preservados.
 """
 import sys
 import os
@@ -431,9 +431,17 @@ try:
     except Exception:
         pass
 
-    # 4. Título da Janela e Barra Superior
+    # 4. Janela principal sem barra de título nem barra de menus
     from zapzap.ui.components.client_side_window import _TitleBar, ClientSideWindow
     from zapzap.ui.components.main_window import MainWindowView
+    from zapzap.app.main_window_controller import MainWindowController
+    from PyQt6.QtGui import QAction
+
+    def hide_main_menubar(self):
+        self.menubar.hide()
+        self.menubar.setMaximumHeight(0)
+
+    MainWindowController.settings_menubar = hide_main_menubar
 
     orig_titlebar_init = _TitleBar.__init__
     def patched_titlebar_init(self, window, title, button_theme, settings):
@@ -447,7 +455,13 @@ try:
         orig_main_init(self, *args, **kwargs)
         self.setWindowTitle("WhatsApp")
         self.setWindowIcon(create_whatsapp_clean_icon())
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.retranslate_ui()
+        hide_main_menubar(self)
+        # O menu fica oculto, mas os atalhos continuam ativos na janela.
+        for action in self.findChildren(QAction):
+            if not action.shortcut().isEmpty():
+                self.addAction(action)
     MainWindowView.__init__ = patched_main_init
 
     orig_csr_init = ClientSideWindow.__init__
@@ -455,8 +469,8 @@ try:
         orig_csr_init(self, inner_window, appearance_settings)
         self.setWindowTitle("WhatsApp")
         self.setWindowIcon(create_whatsapp_clean_icon())
-        if hasattr(self, "title_bar") and hasattr(self.title_bar, "title_label"):
-            self.title_bar.title_label.setText("WhatsApp")
+        self.title_bar.hide()
+        self.layout().setContentsMargins(0, 0, 0, 0)
     ClientSideWindow.__init__ = patched_csr_init
 
     # 5. Barra de Menus da Janela Nativa (Sem distorção de atalhos e menus)
@@ -471,6 +485,7 @@ try:
         self.menuHelp.setTitle("Ajuda")
         if hasattr(self, "actionSobre_o_ZapZap"):
             self.actionSobre_o_ZapZap.setText("Sobre o WhatsApp")
+        hide_main_menubar(self)
     MainWindowView.retranslate_ui = safe_retranslate_ui
 
     # 6. Scripts para o WhatsApp Web (DocumentCreation e Tradutor Massivo de DOM)

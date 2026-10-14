@@ -21,7 +21,7 @@
   - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
-  - **Menu da Janela / Barra de Título**: Mesmo logo da bandeja, com margens transparentes e leve recuo à direita nos tamanhos de 16, 20 e 22 px, evitando que o desenho fique encostado na borda da decoração.
+  - **Janela principal**: Sem barra de título e sem a barra de menus; a interface começa diretamente no conteúdo do aplicativo. Os atalhos continuam disponíveis.
   - **Bandeja do Sistema (Systray)**: Contador vermelho compacto no canto inferior direito, número branco em negrito e borda fina. O logo mantém seu tamanho e centro quando chegam mensagens.
   - **Barra de Tarefas / Dock**: Mesmo logo, sempre sem contador. A contagem de mensagens fica somente na bandeja, respeitando a preferência de contador do ZapZap.
 - 🚫 **Livre de Distrações**:
@@ -127,5 +127,6 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 
 Os testes verificam margens transparentes, contadores na bandeja, ausência de contador
 na janela/barra de tarefas e o carregamento do SVG a partir do checkout.
-A posição do botão de menu da janela é controlada pelo tema do KDE; o aplicativo
-ajusta apenas o desenho dentro desse espaço.
+A janela principal não exibe decoração nem barra de menus. No KDE, use `Alt+F4`
+para fechar, a barra de tarefas para minimizar/restaurar e `Ctrl+P` para as
+configurações do aplicativo.
