@@ -8,9 +8,9 @@ Garante que o WhatsApp execute com:
    - Toda a interface do WhatsApp Web (Accept-Language, cabeçalhos de locale pt-BR no DocumentCreation
      e tradução contínua de DOM com dicionário massivo cobrindo textos, placeholders, aria-labels e tooltips).
 2. Substituição total de qualquer menção residual a "ZapZap" por "WhatsApp".
-3. Ícone da bandeja (área de notificações) mantido exatamente igual.
-4. Ícone da janela e barra de tarefas (app aberto) mantido no tamanho ajustado (-10%).
-5. O título "WhatsApp" exibido na barra superior / título da janela.
+3. Ícone proporcional na bandeja com contador no canto inferior direito.
+4. Ícone proporcional da janela e barra de tarefas, sempre sem contador.
+5. Janela principal sem barras de título e menus, com atalhos preservados.
 """
 import sys
 import os
@@ -270,31 +270,33 @@ try:
         pass
 
     # 3. Ícones oficiais do WhatsApp (renderização multi-resolução nativa com QPainter)
-    from PyQt6.QtGui import QPainter, QColor, QFont, QPen, QBrush
+    from PyQt6.QtGui import QPainter, QColor, QFont, QFontMetricsF, QPen, QBrush
     from PyQt6.QtCore import QRectF, Qt, QByteArray
     from PyQt6.QtSvg import QSvgRenderer
     from zapzap.assets.icons.tray_icon import TrayIcon
 
-    official_svg_path = os.path.expanduser("~/.local/share/icons/whatsapp.svg")
-    try:
-        with open(official_svg_path, "r", encoding="utf-8") as f:
-            OFFICIAL_WHATSAPP_SVG = f.read()
-    except Exception:
-        OFFICIAL_WHATSAPP_SVG = ""
+    # Permite executar tanto a instalação quanto o checkout do projeto.
+    official_svg_paths = (
+        os.path.expanduser("~/.local/share/icons/whatsapp.svg"),
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "icons", "whatsapp.svg"),
+    )
+    OFFICIAL_WHATSAPP_SVG = ""
+    for official_svg_path in official_svg_paths:
+        try:
+            with open(official_svg_path, "r", encoding="utf-8") as f:
+                candidate_svg = f.read()
+            if QSvgRenderer(QByteArray(candidate_svg.encode("utf-8"))).isValid():
+                OFFICIAL_WHATSAPP_SVG = candidate_svg
+                break
+        except OSError:
+            continue
 
-    WINDOW_WHATSAPP_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
-<defs>
-  <linearGradient id="win_g1" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stop-color="#2fe06e"/>
-    <stop offset="100%" stop-color="#1caa46"/>
-  </linearGradient>
-</defs>
-  <path fill="url(#win_g1)" d="M 80 12 C 42.5 12 12 42.5 12 80 C 12 92.8 15.6 104.8 21.8 115 L 14 146 L 46 138.3 C 56.1 144.4 67.8 148 80 148 C 117.5 148 148 117.5 148 80 C 148 42.5 117.5 12 80 12 Z"/>
-  <path fill="#ffffff" d="M 61 46 C 59.2 46 57.4 46.7 56 48.2 C 53.8 50.4 48.5 55.6 48.5 66.2 C 48.5 76.8 56.3 87 57.4 88.5 C 58.5 90 72.8 112.2 94.7 121.7 C 112.9 129.6 116.6 128 120.5 127.6 C 124.5 127.2 133.3 122.3 135.1 117.2 C 137 112.1 137 107.7 136.4 106.8 C 135.9 105.9 134.4 105.4 132.2 104.3 C 130 103.2 119.3 97.9 117.3 97.2 C 115.3 96.5 113.8 96.1 112.4 98.3 C 110.9 100.5 106.7 105.4 105.4 106.8 C 104.1 108.3 102.8 108.5 100.6 107.4 C 98.4 106.3 91.3 103.9 82.8 96.3 C 76.2 90.4 71.7 83.2 70.4 81 C 69.1 78.8 70.3 77.6 71.4 76.5 C 72.4 75.5 73.6 73.9 74.7 72.6 C 75.8 71.3 76.2 70.4 76.9 68.9 C 77.6 67.5 77.3 66.2 76.7 65.1 C 76.2 64 72 53.8 70.2 49.5 C 68.5 45.3 66.7 45.9 65.3 45.8 L 61 46 Z"/>
-</svg>"""
+    # Um único desenho quadrado e proporcional em todos os tamanhos.
+    OFFICIAL_WHATSAPP_SVG = OFFICIAL_WHATSAPP_SVG.replace(
+        'viewBox="5 4 164 165"', 'viewBox="5 5 164 164"'
+    )
 
     _svg_renderer = None
-    _win_svg_renderer = None
 
     def get_svg_renderer():
         global _svg_renderer
@@ -302,16 +304,12 @@ try:
             _svg_renderer = QSvgRenderer(QByteArray(OFFICIAL_WHATSAPP_SVG.encode("utf-8")))
         return _svg_renderer
 
-    def get_win_svg_renderer():
-        global _win_svg_renderer
-        if _win_svg_renderer is None:
-            _win_svg_renderer = QSvgRenderer(QByteArray(WINDOW_WHATSAPP_SVG.encode("utf-8")))
-        return _win_svg_renderer
-
     def render_whatsapp_pixmap(size, count=0, allow_badge=True):
         renderer = get_svg_renderer()
         if not renderer:
-            return QPixmap(size, size)
+            pix = QPixmap(size, size)
+            pix.fill(Qt.GlobalColor.transparent)
+            return pix
 
         # Super-sampling 4x para antialiasing de alta fidelidade
         scale = 4
@@ -325,34 +323,29 @@ try:
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
 
         if count > 0 and allow_badge:
-            # Logo oficial do WhatsApp com margem para o badge no topo direito
-            logo_w = high * 0.86
-            logo_h = high * 0.86
-            renderer.render(p, QRectF(0, high * 0.14, logo_w, logo_h))
+            # O logo mantém tamanho e centro ao receber o contador.
+            renderer.render(p, QRectF(0, 0, high, high))
 
             text = str(count) if count < 100 else "99+"
-            badge_h = high * 0.44
-            if len(text) == 1:
-                badge_w = badge_h
-            else:
-                badge_w = badge_h * (1.0 + 0.35 * (len(text) - 1))
+            # Mais espaço útil para o número e menos cobertura do logo.
+            badge_h = high * 0.38
+            font = QFont("DejaVu Sans")
+            font.setBold(True)
+            font.setPixelSize(round(badge_h * 0.82))
+            p.setFont(font)
+            metrics = QFontMetricsF(font)
+            badge_w = max(badge_h, metrics.horizontalAdvance(text) + high * 0.06)
 
-            # Notificação ligeiramente deslocada à esquerda para máxima visibilidade na bandeja
-            bx = high - badge_w - (high * 0.07)
-            by = high * 0.03
+            border_w = max(1.0, high * 0.022)
+            margin = border_w / 2 + high * 0.005
+            bx = high - badge_w - margin
+            by = high - badge_h - margin
             rect = QRectF(bx, by, badge_w, badge_h)
 
-            border_w = max(2.0, high * 0.05)
-            p.setPen(QPen(QColor(255, 255, 255), border_w))
-            p.setBrush(QBrush(QColor("#E53935"))) # Vermelho vibrante
-            r = badge_h / 2.0
-            p.drawRoundedRect(rect, r, r)
-
-            p.setPen(QColor(255, 255, 255))
-            font = QFont("DejaVu Sans, Arial, sans-serif")
-            font.setBold(True)
-            font.setPixelSize(int(badge_h * 0.65))
-            p.setFont(font)
+            p.setPen(QPen(QColor("#ffffff"), border_w))
+            p.setBrush(QBrush(QColor("#dc2626")))
+            p.drawRoundedRect(rect, badge_h / 2, badge_h / 2)
+            p.setPen(QColor("#ffffff"))
             p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
         else:
             # 100% limpo, perfeitamente redondo e nítido
@@ -362,48 +355,44 @@ try:
         return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
     def render_whatsapp_window_pixmap(size):
-        """Renderiza o design de janela otimizado de altíssima nitidez e contraste."""
-        renderer = get_win_svg_renderer()
+        """Mesmo logo, com respiro e pequeno recuo à direita no título."""
+        if size > 22:
+            return render_whatsapp_pixmap(size, allow_badge=False)
         scale = 4
         high = size * scale
         pix = QPixmap(high, high)
         pix.fill(Qt.GlobalColor.transparent)
-        p = QPainter(pix)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        renderer.render(p, QRectF(0, 0, high, high))
-        p.end()
-        return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        renderer = get_svg_renderer()
+        if renderer is not None:
+            painter = QPainter(pix)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            # Em 16 px: 2 px à esquerda, 1 px à direita e 1,5 px na vertical.
+            # O logo permanece quadrado; só seu enquadramento muda.
+            inset = high * (1.5 / 16)
+            shift = high * (0.5 / 16)
+            side = high - 2 * inset
+            renderer.render(painter, QRectF(inset + shift, inset, side, side))
+            painter.end()
+        return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
+                          Qt.TransformationMode.SmoothTransformation)
 
     def create_whatsapp_clean_icon():
-        """Ícone oficial para a janela (versão otimizada) e sistema."""
+        """Mesmo logo para janela e barra de tarefas, com margens nos tamanhos pequenos."""
         icon = QIcon()
         for size in (16, 20, 22, 24, 32, 48, 64, 128, 256):
             icon.addPixmap(render_whatsapp_window_pixmap(size))
         return icon
 
     def create_whatsapp_tray_icon(count=0):
-        """Ícone da bandeja do sistema com badge vermelho ligeiramente deslocado à esquerda."""
-        if count <= 0:
-            return create_whatsapp_clean_icon()
+        """Ícone da bandeja com contador vermelho no canto inferior direito."""
         icon = QIcon()
         for size in (16, 20, 22, 24, 32, 48, 64, 128):
             icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
         return icon
 
     def create_whatsapp_window_icon(count=0):
-        """Ícone para janela e barra de tarefas:
-        - Tamanhos 16 e 22 (barra de títulos/menu da janela) usam a versão otimizada limpa.
-        - Tamanhos >= 24 (barra de tarefas e dock) usam o badge com notificação.
-        """
-        if count <= 0:
-            return create_whatsapp_clean_icon()
-        icon = QIcon()
-        for size in (16, 20, 22):
-            icon.addPixmap(render_whatsapp_window_pixmap(size))
-        for size in (24, 32, 48, 64, 128, 256):
-            icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
-        return icon
+        """Janela e barra de tarefas sempre usam o ícone limpo."""
+        return create_whatsapp_clean_icon()
 
     # Redefine TrayIcon.getIcon para a bandeja
     TrayIcon.getIcon = staticmethod(lambda theme=TrayIcon.Type.Default, qtd=0: create_whatsapp_tray_icon(qtd))
@@ -420,14 +409,20 @@ try:
 
     orig_app_set_icon = QApplication.setWindowIcon
 
-    # Conectar notificações para atualizar a bandeja e a barra de tarefas
+    # Atualizar o contador apenas na bandeja, mantendo a janela limpa.
     try:
         from zapzap.features.tray.sys_tray_manager import SysTrayManager
-        orig_sys_tray_set_icon = SysTrayManager._set_icon
         def patched_sys_tray_set_icon(self, icon_type, number_notifications=0):
-            orig_sys_tray_set_icon(self, icon_type, number_notifications)
+            # Mantém o estado do tema sem publicar um contador na barra de tarefas.
+            self.current_icon = icon_type
+            if not self._settings.notification_counter_enabled:
+                number_notifications = 0
             self._tray.setIcon(create_whatsapp_tray_icon(number_notifications))
-            win_icon = create_whatsapp_window_icon(number_notifications)
+            # Qt também publica um contador nativo no gerenciador de tarefas.
+            set_badge = getattr(QApplication.instance(), "setBadgeNumber", None)
+            if set_badge is not None:
+                set_badge(0)
+            win_icon = create_whatsapp_window_icon()
             orig_app_set_icon(win_icon)
             for widget in QApplication.topLevelWidgets():
                 if widget.isWindow():
@@ -436,9 +431,17 @@ try:
     except Exception:
         pass
 
-    # 4. Título da Janela e Barra Superior
+    # 4. Janela principal sem barra de título nem barra de menus
     from zapzap.ui.components.client_side_window import _TitleBar, ClientSideWindow
     from zapzap.ui.components.main_window import MainWindowView
+    from zapzap.app.main_window_controller import MainWindowController
+    from PyQt6.QtGui import QAction
+
+    def hide_main_menubar(self):
+        self.menubar.hide()
+        self.menubar.setMaximumHeight(0)
+
+    MainWindowController.settings_menubar = hide_main_menubar
 
     orig_titlebar_init = _TitleBar.__init__
     def patched_titlebar_init(self, window, title, button_theme, settings):
@@ -452,7 +455,13 @@ try:
         orig_main_init(self, *args, **kwargs)
         self.setWindowTitle("WhatsApp")
         self.setWindowIcon(create_whatsapp_clean_icon())
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.retranslate_ui()
+        hide_main_menubar(self)
+        # O menu fica oculto, mas os atalhos continuam ativos na janela.
+        for action in self.findChildren(QAction):
+            if not action.shortcut().isEmpty():
+                self.addAction(action)
     MainWindowView.__init__ = patched_main_init
 
     orig_csr_init = ClientSideWindow.__init__
@@ -460,8 +469,8 @@ try:
         orig_csr_init(self, inner_window, appearance_settings)
         self.setWindowTitle("WhatsApp")
         self.setWindowIcon(create_whatsapp_clean_icon())
-        if hasattr(self, "title_bar") and hasattr(self.title_bar, "title_label"):
-            self.title_bar.title_label.setText("WhatsApp")
+        self.title_bar.hide()
+        self.layout().setContentsMargins(0, 0, 0, 0)
     ClientSideWindow.__init__ = patched_csr_init
 
     # 5. Barra de Menus da Janela Nativa (Sem distorção de atalhos e menus)
@@ -476,7 +485,14 @@ try:
         self.menuHelp.setTitle("Ajuda")
         if hasattr(self, "actionSobre_o_ZapZap"):
             self.actionSobre_o_ZapZap.setText("Sobre o WhatsApp")
+        hide_main_menubar(self)
     MainWindowView.retranslate_ui = safe_retranslate_ui
+
+    # Conta selecionada: manter o fundo discreto, sem contorno verde.
+    from zapzap.ui.components.browser_page_button import BrowserPageButton
+    BrowserPageButton.STYLE_SELECTED = BrowserPageButton.STYLE_SELECTED.replace(
+        "border: 1px solid palette(highlight);", "border: 1px solid transparent;"
+    )
 
     # 6. Scripts para o WhatsApp Web (DocumentCreation e Tradutor Massivo de DOM)
     from zapzap.features.browser.web.web_view import WebView
