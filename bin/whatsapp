@@ -1,0 +1,807 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+WhatsApp Launcher Wrapper
+Garante que o WhatsApp execute com:
+1. Tradução MASSIVA e COMPLETA para o Português do Brasil (pt-BR) em:
+   - Toda a interface nativa do aplicativo (menus, janelas de configurações, diálogos, botões, abas e tooltips).
+   - Toda a interface do WhatsApp Web (Accept-Language, cabeçalhos de locale pt-BR no DocumentCreation
+     e tradução contínua de DOM com dicionário massivo cobrindo textos, placeholders, aria-labels e tooltips).
+2. Substituição total de qualquer menção residual a "ZapZap" por "WhatsApp".
+3. Ícone da bandeja (área de notificações) mantido exatamente igual.
+4. Ícone da janela e barra de tarefas (app aberto) mantido no tamanho ajustado (-10%).
+5. O título "WhatsApp" exibido na barra superior / título da janela.
+"""
+import sys
+import os
+import re
+import gettext
+import builtins
+
+# 1. Configurações iniciais do QtWebEngine
+try:
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
+    from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEngineScript
+except Exception:
+    pass
+
+try:
+    import zapzap
+    zapzap.__appname__ = "WhatsApp"
+
+    from PyQt6.QtGui import QImage, QPixmap, QIcon
+    from PyQt6.QtCore import QSize
+    from PyQt6.QtWidgets import QApplication
+
+    # 2. Dicionário massivo para a interface nativa do aplicativo
+    GLOBAL_NATIVE_TRANSLATIONS = {
+        # Títulos e seções de configurações
+        "Accounts": "Contas",
+        "Appearance": "Aparência",
+        "Notifications": "Notificações",
+        "Permissions": "Permissões",
+        "System and startup": "Sistema e inicialização",
+        "Language and Download": "Idioma e downloads",
+        "Privacy and Network": "Privacidade e rede",
+        "Performance and Experimental": "Desempenho e experimental",
+        "Advanced customizations": "Personalizações avançadas",
+        "Debugging": "Depuração",
+        "About": "Sobre",
+        "General": "Geral",
+        "Settings": "Configurações",
+        "Adjust accounts, appearance, notifications and advanced options.": "Ajuste contas, aparência, notificações e opções avançadas.",
+        "Close settings": "Fechar configurações",
+
+        # Desempenho e opções experimentais
+        "Rendering profile": "Perfil de renderização",
+        "Recommended settings with hardware acceleration enabled.": "Configurações recomendadas com aceleração de hardware ativada.",
+        "Use custom GPU and rendering options.": "Usar opções personalizadas de GPU e renderização.",
+        "Display backend": "Servidor de exibição",
+        "Choose the Qt display backend. Changes require restart.": "Escolha o servidor de exibição do Qt. Alterações requerem reinicialização.",
+        "Force the native Wayland backend.": "Forçar o backend Wayland nativo.",
+        "Disable GPU memory buffer for video": "Desativar buffer de memória da GPU para vídeo",
+        "Disable zero-copy": "Desativar zero-copy",
+        "Enables smooth scrolling animations.\nDisabling may reduce CPU usage.": "Ativa animações de rolagem suave.\nDesativar pode reduzir o uso de CPU.",
+        "Keeps cookies between restarts.\nDisabling may cause frequent logouts.": "Mantém cookies entre reinicializações.\nDesativar pode causar desconexões frequentes.",
+        "Restores all performance settings\nto safe default values.": "Restaura todas as configurações de desempenho\npara os valores padrão seguros.",
+        "Reset to defaults": "Restaurar padrões",
+
+        # Permissões e Segurança
+        "Account selector": "Seletor de contas",
+        "Allow only the WhatsApp Web permissions you want to grant automatically.": "Permitir apenas as permissões do WhatsApp Web que você deseja conceder automaticamente.",
+        "Enable only the permissions you want to grant automatically when the page requests them.": "Ative apenas as permissões que você deseja conceder automaticamente quando a página solicitar.",
+        "Audio": "Áudio",
+        "Compatibility": "Compatibilidade",
+        "Flatseal is a graphical utility to review and modify permissions from your Flatpak applications.": "O Flatseal é um utilitário gráfico para revisar e modificar permissões dos seus aplicativos Flatpak.",
+        "Grant filesystem access if downloads, imports, or dictionaries cannot reach folders outside the sandbox.": "Conceder acesso ao sistema de arquivos caso downloads, importações ou dicionários não alcancem pastas fora do ambiente isolado.",
+
+        # Downloads e Arquivos
+        "Download directly (where supported)": "Baixar diretamente (onde suportado)",
+        "Downloads": "Downloads",
+        "PDF file clicks": "Cliques em arquivos PDF",
+        "Preview PDF files in WhatsApp or download them when the ": "Pré-visualizar arquivos PDF no WhatsApp ou baixá-los quando o ",
+        "Preview in WhatsApp": "Pré-visualizar no WhatsApp",
+        "Choose where files are saved and enable spell checking when dictionaries are available.": "Escolha onde os arquivos são salvos e ative a verificação ortográfica quando houver dicionários disponíveis.",
+        "Delete file": "Excluir arquivo",
+        "Could not remove settings file:\n{error}": "Não foi possível remover o arquivo de configurações:\n{error}",
+        "Ctrl+S to save": "Ctrl+S para salvar",
+
+        # Notificações e Sistema
+        "Allow ZapZap to publish native desktop notifications for WhatsApp activity.": "Permitir que o aplicativo exiba notificações nativas na área de trabalho para atividades do WhatsApp.",
+        "Choose whether ZapZap should stay available from the tray and start with your session.": "Escolha se o WhatsApp deve permanecer disponível na bandeja e iniciar com a sua sessão.",
+        "Choose whether customizations apply to all accounts or only to the current account.": "Escolha se as personalizações se aplicam a todas as contas ou apenas à conta atual.",
+        "Decide how much message information appears in native notification banners.": "Decida quantas informações de mensagens aparecem nos banners de notificação nativos.",
+        "Notifications muted": "Notificações silenciadas",
+        "Unmute": "Reativar som",
+        "Unread messages: {}": "Mensagens não lidas: {}",
+
+        # Depuração e Relatórios
+        "Manage local files used to diagnose errors. These files are not sent automatically.": "Gerencie os arquivos locais usados para diagnosticar erros. Esses arquivos não são enviados automaticamente.",
+        "Avoid phone numbers, messages, contact names, or other personal information.": "Evite números de telefone, mensagens, nomes de contatos ou outras informações pessoais.",
+        "Never sent: messages, contacts, phone numbers, cookies, WhatsApp session data, conversation content, passwords, or authentication tokens.": "Nunca enviado: mensagens, contatos, números de telefone, cookies, dados da sessão do WhatsApp, conteúdo de conversas, senhas ou tokens de autenticação.",
+        "No account activity to show yet.": "Nenhuma atividade de conta para exibir ainda.",
+        "Monitoring panel": "Painel de monitoramento",
+        "Monitor accounts in a separate window. Closing it only hides it temporarily.": "Monitore contas em uma janela separada. Fechá-la apenas a oculta temporariamente.",
+        "ZapZap can prepare a sanitized technical report locally after a serious failure. You will review it on the next startup.\n\nZapZap never transmits or publishes the report automatically.": "O aplicativo pode preparar um relatório técnico localmente após uma falha crítica. Você o revisará na próxima inicialização.\n\nO relatório nunca é transmitido ou publicado automaticamente.",
+        "DevTools - {}": "Ferramentas de Desenvolvedor - {}",
+        "WhatsApp Web is requesting access to {}.\n\nAllow?": "O WhatsApp Web está solicitando acesso a {}.\n\nPermitir?",
+        "{count} available": "{count} disponíveis",
+        "{count} crash report": "{count} relatório de falha",
+        "Drag or use the arrow keys to resize. Double-click or ": "Arraste ou use as teclas de seta para redimensionar. Dê um clique duplo ou ",
+        "No preview available. Select a CSS file to view an associated screenshot.": "Nenhuma pré-visualização disponível. Selecione um arquivo CSS para ver a captura de tela associada.",
+
+        # Opções de Conta e User-Agent
+        "User-Agent": "Identificação do Navegador (User-Agent)",
+        "User-Agent information": "Informações sobre a identificação do navegador",
+        "Advanced options": "Opções avançadas",
+        "Keep current icon": "Manter ícone atual",
+        "Change icon": "Alterar ícone",
+        "Generate new colors for the icon": "Gerar novas cores para o ícone",
+        "Restore standard": "Restaurar padrão",
+        "Choose photo": "Escolher foto",
+        "Sync profile photo": "Sincronizar foto do perfil",
+        "Account name": "Nome da conta",
+        "Edit account": "Editar conta",
+        "Changes the identification used by this account when loading pages.": "Altera a identificação usada por esta conta ao carregar páginas."
+    }
+
+    # Mapeamento em português dos navegadores / User-Agents
+    USER_AGENT_LABELS_PT_BR = {
+        "Default": "Padrão",
+        "Windows Chrome": "Google Chrome (Windows)",
+        "Windows Firefox": "Mozilla Firefox (Windows)",
+        "Windows Edge": "Microsoft Edge (Windows)",
+        "Mac Safari": "Apple Safari (macOS)",
+        "Mac Chrome": "Google Chrome (macOS)",
+        "Linux Firefox": "Mozilla Firefox (Linux)",
+        "Linux Chrome": "Google Chrome (Linux)",
+    }
+
+    # Interceptador global do gettext
+    orig_gettext_fn = gettext.gettext
+    def deep_gettext(msg):
+        if not msg:
+            return msg
+        res = orig_gettext_fn(msg)
+        if res == msg or not res:
+            if msg in GLOBAL_NATIVE_TRANSLATIONS:
+                return GLOBAL_NATIVE_TRANSLATIONS[msg]
+        return res
+
+    gettext.gettext = deep_gettext
+    builtins._ = deep_gettext
+
+    local_po_dir = os.path.expanduser("~/.local/share/zapzap-patch/po")
+    from zapzap.core.i18n.translation_manager import TranslationManager
+    TranslationManager._locale_dir = local_po_dir
+
+    orig_apply = TranslationManager.apply
+    def patched_apply():
+        orig_apply()
+        try:
+            t = gettext.translation(
+                "zapzap",
+                localedir=local_po_dir,
+                languages=["pt_BR"],
+                fallback=True
+            )
+            t.install()
+        except Exception:
+            pass
+    TranslationManager.apply = staticmethod(patched_apply)
+    TranslationManager.apply()
+
+    # Patchear as abas de configurações
+    try:
+        from zapzap.features.settings.shell.settings_controller import SettingsController, SettingsPageDescriptor
+        orig_pages = SettingsController._pages
+        def patched_pages(self):
+            pages = orig_pages(self)
+            new_pages = []
+            for p in pages:
+                lbl = GLOBAL_NATIVE_TRANSLATIONS.get(p.label, p.label)
+                new_pages.append(SettingsPageDescriptor(p.page_id, lbl, p.module_name, p.controller_name))
+            return new_pages
+        SettingsController._pages = patched_pages
+    except Exception:
+        pass
+
+    # Patchear ComboBox para traduzir opções de User-Agent mantendo os dados intactos
+    try:
+        from zapzap.ui.primitives.combo_box import ComboBox
+        orig_combo_add_item = ComboBox.addItem
+        def patched_combo_add_item(self, text, userData=None):
+            if text in USER_AGENT_LABELS_PT_BR:
+                disp = USER_AGENT_LABELS_PT_BR[text]
+                data = userData if userData is not None else text
+                return orig_combo_add_item(self, disp, data)
+            return orig_combo_add_item(self, text, userData)
+        ComboBox.addItem = patched_combo_add_item
+
+        orig_combo_find_data = ComboBox.findData
+        def patched_combo_find_data(self, data, *args, **kwargs):
+            idx = orig_combo_find_data(self, data, *args, **kwargs)
+            if idx >= 0:
+                return idx
+            for i in range(self.count()):
+                if self.itemData(i) == data or self.itemText(i) == data:
+                    return i
+            return -1
+        ComboBox.findData = patched_combo_find_data
+    except Exception:
+        pass
+
+    # Remoção total da opção "Apoiar o ZapZap" de toda a interface sem quebrar geometria de layouts
+    try:
+        from zapzap.features.settings.shell.settings_view import SettingsView
+        orig_settings_setup_ui = SettingsView._setup_ui
+        def patched_settings_setup_ui(self):
+            orig_settings_setup_ui(self)
+            if hasattr(self, "btn_donate"):
+                self.btn_donate.hide()
+                self.btn_donate.setVisible(False)
+                self.btn_donate.setMaximumHeight(0)
+        SettingsView._setup_ui = patched_settings_setup_ui
+
+        from zapzap.features.tray.sys_tray_manager import SysTrayManager
+        orig_tray_create_menu = SysTrayManager._create_menu
+        def patched_tray_create_menu(self):
+            menu = orig_tray_create_menu(self)
+            if "donation" in self._actions:
+                self._actions["donation"].setVisible(False)
+                menu.removeAction(self._actions["donation"])
+            return menu
+        SysTrayManager._create_menu = patched_tray_create_menu
+
+        from zapzap.ui.components.browser_sidebar import BrowserSidebar
+        orig_browser_sidebar_init = BrowserSidebar.__init__
+        def patched_browser_sidebar_init(self, *args, **kwargs):
+            orig_browser_sidebar_init(self, *args, **kwargs)
+            if hasattr(self, "btn_donations"):
+                self.btn_donations.hide()
+                self.btn_donations.setVisible(False)
+                self.btn_donations.setMaximumHeight(0)
+        BrowserSidebar.__init__ = patched_browser_sidebar_init
+
+        from zapzap.features.settings.pages.about.view import AboutSettingsView
+        orig_about_actions = AboutSettingsView._setup_actions_section
+        def patched_about_actions(self):
+            orig_about_actions(self)
+            if hasattr(self, "donate_row"):
+                self.donate_row.hide()
+                self.donate_row.setVisible(False)
+        AboutSettingsView._setup_actions_section = patched_about_actions
+
+        from zapzap.features.settings.pages.notifications.view import NotificationsSettingsView
+        orig_notif_setup_ui = NotificationsSettingsView._setup_ui
+        def patched_notif_setup_ui(self):
+            orig_notif_setup_ui(self)
+            if hasattr(self, "donationMessage"):
+                self.donationMessage.hide()
+                self.donationMessage.setVisible(False)
+        NotificationsSettingsView._setup_ui = patched_notif_setup_ui
+
+        from zapzap.ui.components.main_window import MainWindowView
+        MainWindowView.open_donations = lambda self: None
+
+        from zapzap.core.config.settings_manager import SettingsManager
+        SettingsManager.set("notifications/donation_message_enabled", False)
+    except Exception:
+        pass
+
+    # 3. Ícones oficiais do WhatsApp (renderização multi-resolução nativa com QPainter)
+    from PyQt6.QtGui import QPainter, QColor, QFont, QPen, QBrush
+    from PyQt6.QtCore import QRectF, Qt, QByteArray
+    from PyQt6.QtSvg import QSvgRenderer
+    from zapzap.assets.icons.tray_icon import TrayIcon
+
+    official_svg_path = os.path.expanduser("~/.local/share/icons/whatsapp.svg")
+    try:
+        with open(official_svg_path, "r", encoding="utf-8") as f:
+            OFFICIAL_WHATSAPP_SVG = f.read()
+    except Exception:
+        OFFICIAL_WHATSAPP_SVG = ""
+
+    WINDOW_WHATSAPP_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+<defs>
+  <linearGradient id="win_g1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#2fe06e"/>
+    <stop offset="100%" stop-color="#1caa46"/>
+  </linearGradient>
+</defs>
+  <path fill="url(#win_g1)" d="M 80 12 C 42.5 12 12 42.5 12 80 C 12 92.8 15.6 104.8 21.8 115 L 14 146 L 46 138.3 C 56.1 144.4 67.8 148 80 148 C 117.5 148 148 117.5 148 80 C 148 42.5 117.5 12 80 12 Z"/>
+  <path fill="#ffffff" d="M 61 46 C 59.2 46 57.4 46.7 56 48.2 C 53.8 50.4 48.5 55.6 48.5 66.2 C 48.5 76.8 56.3 87 57.4 88.5 C 58.5 90 72.8 112.2 94.7 121.7 C 112.9 129.6 116.6 128 120.5 127.6 C 124.5 127.2 133.3 122.3 135.1 117.2 C 137 112.1 137 107.7 136.4 106.8 C 135.9 105.9 134.4 105.4 132.2 104.3 C 130 103.2 119.3 97.9 117.3 97.2 C 115.3 96.5 113.8 96.1 112.4 98.3 C 110.9 100.5 106.7 105.4 105.4 106.8 C 104.1 108.3 102.8 108.5 100.6 107.4 C 98.4 106.3 91.3 103.9 82.8 96.3 C 76.2 90.4 71.7 83.2 70.4 81 C 69.1 78.8 70.3 77.6 71.4 76.5 C 72.4 75.5 73.6 73.9 74.7 72.6 C 75.8 71.3 76.2 70.4 76.9 68.9 C 77.6 67.5 77.3 66.2 76.7 65.1 C 76.2 64 72 53.8 70.2 49.5 C 68.5 45.3 66.7 45.9 65.3 45.8 L 61 46 Z"/>
+</svg>"""
+
+    _svg_renderer = None
+    _win_svg_renderer = None
+
+    def get_svg_renderer():
+        global _svg_renderer
+        if _svg_renderer is None and OFFICIAL_WHATSAPP_SVG:
+            _svg_renderer = QSvgRenderer(QByteArray(OFFICIAL_WHATSAPP_SVG.encode("utf-8")))
+        return _svg_renderer
+
+    def get_win_svg_renderer():
+        global _win_svg_renderer
+        if _win_svg_renderer is None:
+            _win_svg_renderer = QSvgRenderer(QByteArray(WINDOW_WHATSAPP_SVG.encode("utf-8")))
+        return _win_svg_renderer
+
+    def render_whatsapp_pixmap(size, count=0, allow_badge=True):
+        renderer = get_svg_renderer()
+        if not renderer:
+            return QPixmap(size, size)
+
+        # Super-sampling 4x para antialiasing de alta fidelidade
+        scale = 4
+        high = size * scale
+        pix = QPixmap(high, high)
+        pix.fill(Qt.GlobalColor.transparent)
+
+        p = QPainter(pix)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        p.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+
+        if count > 0 and allow_badge:
+            # Logo oficial do WhatsApp com margem para o badge no topo direito
+            logo_w = high * 0.86
+            logo_h = high * 0.86
+            renderer.render(p, QRectF(0, high * 0.14, logo_w, logo_h))
+
+            text = str(count) if count < 100 else "99+"
+            badge_h = high * 0.44
+            if len(text) == 1:
+                badge_w = badge_h
+            else:
+                badge_w = badge_h * (1.0 + 0.35 * (len(text) - 1))
+
+            # Notificação ligeiramente deslocada à esquerda para máxima visibilidade na bandeja
+            bx = high - badge_w - (high * 0.07)
+            by = high * 0.03
+            rect = QRectF(bx, by, badge_w, badge_h)
+
+            border_w = max(2.0, high * 0.05)
+            p.setPen(QPen(QColor(255, 255, 255), border_w))
+            p.setBrush(QBrush(QColor("#E53935"))) # Vermelho vibrante
+            r = badge_h / 2.0
+            p.drawRoundedRect(rect, r, r)
+
+            p.setPen(QColor(255, 255, 255))
+            font = QFont("DejaVu Sans, Arial, sans-serif")
+            font.setBold(True)
+            font.setPixelSize(int(badge_h * 0.65))
+            p.setFont(font)
+            p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
+        else:
+            # 100% limpo, perfeitamente redondo e nítido
+            renderer.render(p, QRectF(0, 0, high, high))
+
+        p.end()
+        return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+    def render_whatsapp_window_pixmap(size):
+        """Renderiza o design de janela otimizado de altíssima nitidez e contraste."""
+        renderer = get_win_svg_renderer()
+        scale = 4
+        high = size * scale
+        pix = QPixmap(high, high)
+        pix.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pix)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        renderer.render(p, QRectF(0, 0, high, high))
+        p.end()
+        return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+    def create_whatsapp_clean_icon():
+        """Ícone oficial para a janela (versão otimizada) e sistema."""
+        icon = QIcon()
+        for size in (16, 20, 22, 24, 32, 48, 64, 128, 256):
+            icon.addPixmap(render_whatsapp_window_pixmap(size))
+        return icon
+
+    def create_whatsapp_tray_icon(count=0):
+        """Ícone da bandeja do sistema com badge vermelho ligeiramente deslocado à esquerda."""
+        if count <= 0:
+            return create_whatsapp_clean_icon()
+        icon = QIcon()
+        for size in (16, 20, 22, 24, 32, 48, 64, 128):
+            icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
+        return icon
+
+    def create_whatsapp_window_icon(count=0):
+        """Ícone para janela e barra de tarefas:
+        - Tamanhos 16 e 22 (barra de títulos/menu da janela) usam a versão otimizada limpa.
+        - Tamanhos >= 24 (barra de tarefas e dock) usam o badge com notificação.
+        """
+        if count <= 0:
+            return create_whatsapp_clean_icon()
+        icon = QIcon()
+        for size in (16, 20, 22):
+            icon.addPixmap(render_whatsapp_window_pixmap(size))
+        for size in (24, 32, 48, 64, 128, 256):
+            icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
+        return icon
+
+    # Redefine TrayIcon.getIcon para a bandeja
+    TrayIcon.getIcon = staticmethod(lambda theme=TrayIcon.Type.Default, qtd=0: create_whatsapp_tray_icon(qtd))
+
+    # A janela principal e o aplicativo definem o ícone oficial nítido assim que QApplication é criado
+    orig_app_init = QApplication.__init__
+    def patched_app_init(self, *args, **kwargs):
+        orig_app_init(self, *args, **kwargs)
+        try:
+            self.setWindowIcon(create_whatsapp_clean_icon())
+        except Exception:
+            pass
+    QApplication.__init__ = patched_app_init
+
+    orig_app_set_icon = QApplication.setWindowIcon
+
+    # Conectar notificações para atualizar a bandeja e a barra de tarefas
+    try:
+        from zapzap.features.tray.sys_tray_manager import SysTrayManager
+        orig_sys_tray_set_icon = SysTrayManager._set_icon
+        def patched_sys_tray_set_icon(self, icon_type, number_notifications=0):
+            orig_sys_tray_set_icon(self, icon_type, number_notifications)
+            self._tray.setIcon(create_whatsapp_tray_icon(number_notifications))
+            win_icon = create_whatsapp_window_icon(number_notifications)
+            orig_app_set_icon(win_icon)
+            for widget in QApplication.topLevelWidgets():
+                if widget.isWindow():
+                    widget.setWindowIcon(win_icon)
+        SysTrayManager._set_icon = patched_sys_tray_set_icon
+    except Exception:
+        pass
+
+    # 4. Título da Janela e Barra Superior
+    from zapzap.ui.components.client_side_window import _TitleBar, ClientSideWindow
+    from zapzap.ui.components.main_window import MainWindowView
+
+    orig_titlebar_init = _TitleBar.__init__
+    def patched_titlebar_init(self, window, title, button_theme, settings):
+        if not title or "ZapZap" in title:
+            title = title.replace("ZapZap", "WhatsApp") if title else "WhatsApp"
+        orig_titlebar_init(self, window, title, button_theme, settings)
+    _TitleBar.__init__ = patched_titlebar_init
+
+    orig_main_init = MainWindowView.__init__
+    def patched_main_init(self, *args, **kwargs):
+        orig_main_init(self, *args, **kwargs)
+        self.setWindowTitle("WhatsApp")
+        self.setWindowIcon(create_whatsapp_clean_icon())
+        self.retranslate_ui()
+    MainWindowView.__init__ = patched_main_init
+
+    orig_csr_init = ClientSideWindow.__init__
+    def patched_csr_init(self, inner_window, appearance_settings=None):
+        orig_csr_init(self, inner_window, appearance_settings)
+        self.setWindowTitle("WhatsApp")
+        self.setWindowIcon(create_whatsapp_clean_icon())
+        if hasattr(self, "title_bar") and hasattr(self.title_bar, "title_label"):
+            self.title_bar.title_label.setText("WhatsApp")
+    ClientSideWindow.__init__ = patched_csr_init
+
+    # 5. Barra de Menus da Janela Nativa (Sem distorção de atalhos e menus)
+    orig_main_retranslate = MainWindowView.retranslate_ui
+    def safe_retranslate_ui(self):
+        orig_main_retranslate(self)
+        self.setWindowTitle("WhatsApp")
+        self.menuFile.setTitle("Arquivo")
+        self.menuView.setTitle("Exibir")
+        self.menuChat.setTitle("Conversas")
+        self.menuUsers.setTitle("Contas")
+        self.menuHelp.setTitle("Ajuda")
+        if hasattr(self, "actionSobre_o_ZapZap"):
+            self.actionSobre_o_ZapZap.setText("Sobre o WhatsApp")
+    MainWindowView.retranslate_ui = safe_retranslate_ui
+
+    # 6. Scripts para o WhatsApp Web (DocumentCreation e Tradutor Massivo de DOM)
+    from zapzap.features.browser.web.web_view import WebView
+    orig_configure_profile = WebView._configure_profile
+
+    # Script injetado no DocumentCreation: Força o ambiente web do navegador a se identificar como pt-BR nativo
+    JS_LOCALE_SCRIPT = """
+    (function() {
+        try {
+            Object.defineProperty(navigator, 'language', {
+                get: () => 'pt-BR',
+                configurable: true
+            });
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['pt-BR', 'pt', 'en-US', 'en'],
+                configurable: true
+            });
+            Object.defineProperty(navigator, 'userLanguage', {
+                get: () => 'pt-BR',
+                configurable: true
+            });
+            if (window.Intl && Intl.DateTimeFormat) {
+                const origDTF = Intl.DateTimeFormat;
+                window.Intl.DateTimeFormat = function(locales, options) {
+                    return origDTF(locales || 'pt-BR', options);
+                };
+                window.Intl.DateTimeFormat.prototype = origDTF.prototype;
+                window.Intl.DateTimeFormat.supportedLocalesOf = origDTF.supportedLocalesOf;
+            }
+        } catch(e) {}
+    })();
+    """
+
+    # Script injetado no DocumentReady: Tradução massiva e contínua de todo o DOM do WhatsApp Web
+    JS_MASSIVE_TRANSLATE_SCRIPT = """
+    (function() {
+        'use strict';
+
+        const DICT_EXACT = {
+            // Conversas, Navegação e Filtros
+            'Chats': 'Conversas',
+            'Status': 'Status',
+            'Channels': 'Canais',
+            'Communities': 'Comunidades',
+            'Meta AI': 'Meta AI',
+            'New chat': 'Nova conversa',
+            'Menu': 'Menu',
+            'Search': 'Pesquisar',
+            'Search or start new chat': 'Pesquisar ou começar uma nova conversa',
+            'Search chats': 'Pesquisar conversas',
+            'Search in chat': 'Pesquisar na conversa',
+            'Filter unread chats': 'Filtrar conversas não lidas',
+            'Filter chats': 'Filtrar conversas',
+            'All': 'Tudo',
+            'Unread': 'Não lidas',
+            'Favorites': 'Favoritas',
+            'Groups': 'Grupos',
+
+            // Menus de Opções e Três Pontinhos
+            'New group': 'Novo grupo',
+            'New community': 'Nova comunidade',
+            'Starred messages': 'Mensagens favoritas',
+            'Select chats': 'Selecionar conversas',
+            'Settings': 'Configurações',
+            'Log out': 'Desconectar',
+            'Profile': 'Perfil',
+            'Archived': 'Arquivadas',
+            'Archive chat': 'Arquivar conversa',
+            'Unarchive chat': 'Desarquivar conversa',
+            'Mute notifications': 'Silenciar notificações',
+            'Unmute notifications': 'Reativar notificações',
+            'Mute': 'Silenciar',
+            'Unmute': 'Reativar som',
+            'Delete chat': 'Apagar conversa',
+            'Clear chat': 'Limpar conversa',
+            'Clear messages': 'Limpar mensagens',
+            'Exit group': 'Sair do grupo',
+            'Pin chat': 'Fixar conversa',
+            'Unpin chat': 'Desafixar conversa',
+            'Mark as read': 'Marcar como lida',
+            'Mark as unread': 'Marcar como não lida',
+            'Close chat': 'Fechar conversa',
+            'Contact info': 'Dados do contato',
+            'Group info': 'Dados do grupo',
+            'Community info': 'Dados da comunidade',
+            'Channel info': 'Dados do canal',
+            'Report contact': 'Denunciar contato',
+            'Block contact': 'Bloquear contato',
+            'Block': 'Bloquear',
+            'Unblock': 'Desbloquear',
+
+            // Barra de Mensagem e Anexos
+            'Type a message': 'Digite uma mensagem',
+            'Attach': 'Anexar',
+            'Document': 'Documento',
+            'Photos & videos': 'Fotos e vídeos',
+            'Camera': 'Câmera',
+            'Contact': 'Contato',
+            'Poll': 'Enquete',
+            'New sticker': 'Nova figurinha',
+            'Voice message': 'Mensagem de voz',
+            'Emoji': 'Emoji',
+            'Sticker': 'Figurinha',
+            'GIF': 'GIF',
+            'Send': 'Enviar',
+            'Cancel': 'Cancelar',
+            'Record': 'Gravar',
+            'Recording': 'Gravando',
+            'Playing': 'Reproduzindo',
+            'Paused': 'Pausado',
+
+            // Ações de Mensagens
+            'Reply': 'Responder',
+            'Forward': 'Encaminhar',
+            'Forward message': 'Encaminhar mensagem',
+            'Star': 'Favoritar',
+            'Unstar': 'Desfavoritar',
+            'Star message': 'Favoritar mensagem',
+            'Pin': 'Fixar',
+            'Unpin': 'Desafixar',
+            'Pin message': 'Fixar mensagem',
+            'Delete': 'Apagar',
+            'Delete message': 'Apagar mensagem',
+            'Delete for me': 'Apagar para mim',
+            'Delete for everyone': 'Apagar para todos',
+            'Message info': 'Dados da mensagem',
+            'React': 'Reagir',
+            'React to message': 'Reagir à mensagem',
+            'Copy': 'Copiar',
+            'Copy message': 'Copiar mensagem',
+            'Edit': 'Editar',
+            'Edit message': 'Editar mensagem',
+            'Edited': 'Editada',
+            'You deleted this message': 'Você apagou esta mensagem',
+            'This message was deleted': 'Esta mensagem foi apagada',
+
+            // Status e Informações de Presença
+            'online': 'online',
+            'typing...': 'digitando...',
+            'recording audio...': 'gravando áudio...',
+            'click here for contact info': 'clique aqui para ver os dados do contato',
+            'click here for group info': 'clique aqui para ver os dados do grupo',
+
+            // Convites, Instalação e Banners
+            'Invite a friend': 'Convidar um amigo',
+            'Invite friends': 'Convidar amigos',
+            'Invite to group': 'Convidar para o grupo',
+            'Invite via link': 'Convidar via link',
+            'Get WhatsApp for Windows': 'Baixar WhatsApp para Windows',
+            'Get WhatsApp for Mac': 'Baixar WhatsApp para Mac',
+            'Download WhatsApp for Windows': 'Baixar WhatsApp para Windows',
+            'Download WhatsApp for Mac': 'Baixar WhatsApp para Mac',
+            'Use WhatsApp on up to 4 linked devices and 1 phone at the same time.': 'Use o WhatsApp em até 4 aparelhos conectados e 1 celular ao mesmo tempo.',
+            'End-to-end encrypted': 'Protegido com a criptografia de ponta a ponta',
+            'Your personal messages are end-to-end encrypted': 'Suas mensagens pessoais são protegidas com a criptografia de ponta a ponta',
+            'Link with phone number': 'Conectar com número de telefone',
+            'To use WhatsApp on your computer:': 'Para usar o WhatsApp no computador:',
+            '1. Open WhatsApp on your phone': '1. Abra o WhatsApp no seu celular',
+            '2. Tap Menu on Android, or Settings on iPhone': '2. Toque em Menu no Android ou em Ajustes no iPhone',
+            '3. Tap Linked devices and then Link a device': '3. Toque em Aparelhos conectados e Conectar um aparelho',
+            '4. Point your phone to this screen to capture the code': '4. Aponte seu celular para esta tela para capturar o código',
+            'Need help to get started?': 'Precisa de ajuda para começar?',
+            'Keep me signed in': 'Mantenha-me conectado',
+            'Are you sure you want to log out?': 'Tem certeza de que deseja desconectar?',
+
+            // Configurações do WhatsApp Web
+            'Privacy': 'Privacidade',
+            'Security': 'Segurança',
+            'Theme': 'Tema',
+            'Chat wallpaper': 'Papel de parede da conversa',
+            'Media auto-download': 'Download automático de mídia',
+            'Account': 'Conta',
+            'Help': 'Ajuda',
+            'Keyboard shortcuts': 'Atalhos de teclado',
+            'App language': 'Idioma do aplicativo',
+            'Light': 'Claro',
+            'Dark': 'Escuro',
+            'System default': 'Padrão do sistema',
+            'Last seen and online': 'Visto por último e online',
+            'Profile photo': 'Foto do perfil',
+            'About': 'Recado',
+            'Read receipts': 'Confirmações de leitura',
+            'Disappearing messages': 'Mensagens temporárias',
+            'Blocked contacts': 'Contatos bloqueados',
+            'Default message timer': 'Duração padrão de mensagens',
+            'Off': 'Desativado',
+            'On': 'Ativado',
+            '24 hours': '24 horas',
+            '7 days': '7 dias',
+            '90 days': '90 dias',
+            'Everyone': 'Todos',
+            'My contacts': 'Meus contatos',
+            'Nobody': 'Ninguém',
+            'My contacts except...': 'Meus contatos, exceto...',
+
+            // Chamadas e Mídia
+            'Voice call': 'Chamada de voz',
+            'Video call': 'Chamada de vídeo',
+            'Incoming call': 'Chamada recebida',
+            'Missed call': 'Chamada perdida',
+            'Declined call': 'Chamada recusada',
+            'Ongoing call': 'Chamada em andamento',
+            'End call': 'Encerrar chamada',
+            'Mute microphone': 'Desativar microfone',
+            'Unmute microphone': 'Ativar microfone',
+            'Turn off camera': 'Desativar câmera',
+            'Turn on camera': 'Ativar câmera',
+            'Photos': 'Fotos',
+            'Videos': 'Vídeos',
+            'Documents': 'Documentos'
+        };
+
+        const REGEX_PATTERNS = [
+            { reg: /^last seen today at (.*)$/i, rep: 'visto por último hoje às $1' },
+            { reg: /^last seen yesterday at (.*)$/i, rep: 'visto por último ontem às $1' },
+            { reg: /^last seen (.*)$/i, rep: 'visto por último em $1' },
+            { reg: /^today at (.*)$/i, rep: 'hoje às $1' },
+            { reg: /^yesterday at (.*)$/i, rep: 'ontem às $1' },
+            { reg: /\bZapZap\b/g, rep: 'WhatsApp' }
+        ];
+
+        function translateString(str) {
+            if (!str) return str;
+            const trimmed = str.trim();
+            if (DICT_EXACT[trimmed]) {
+                return str.replace(trimmed, DICT_EXACT[trimmed]);
+            }
+            for (const p of REGEX_PATTERNS) {
+                if (p.reg.test(trimmed)) {
+                    return str.replace(p.reg, p.rep);
+                }
+            }
+            return null;
+        }
+
+        const ATTR_NAMES = ['placeholder', 'title', 'aria-label', 'alt'];
+
+        function translateElementAttributes(el) {
+            if (!el || !el.getAttribute) return;
+            for (const attr of ATTR_NAMES) {
+                const val = el.getAttribute(attr);
+                if (val) {
+                    const trans = translateString(val);
+                    if (trans && trans !== val) {
+                        el.setAttribute(attr, trans);
+                    }
+                }
+            }
+        }
+
+        function translateDom() {
+            if (!document.body) return;
+
+            // 1. Traduz nós de texto visíveis
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+                const val = node.nodeValue;
+                if (val && val.trim().length > 0) {
+                    const trans = translateString(val);
+                    if (trans && trans !== val) {
+                        node.nodeValue = trans;
+                    }
+                }
+            }
+
+            // 2. Traduz atributos dos elementos
+            const elements = document.body.querySelectorAll('[placeholder], [title], [aria-label], [alt]');
+            for (let i = 0; i < elements.length; i++) {
+                translateElementAttributes(elements[i]);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', translateDom);
+        } else {
+            translateDom();
+        }
+
+        // Observação contínua para novos elementos dinâmicos
+        const observer = new MutationObserver(() => {
+            translateDom();
+        });
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['placeholder', 'title', 'aria-label', 'alt']
+        });
+
+        setInterval(translateDom, 1200);
+    })();
+    """
+
+    def patched_configure_profile(self):
+        orig_configure_profile(self)
+        if self.profile:
+            self.profile.setHttpAcceptLanguage("pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
+            try:
+                # 1. Injeta script no DocumentCreation para assegurar locale pt-BR nativo do navegador
+                s_locale = QWebEngineScript()
+                s_locale.setName("whatsapp_web_pt_br_locale")
+                s_locale.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+                s_locale.setRunsOnSubFrames(True)
+                s_locale.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+                s_locale.setSourceCode(JS_LOCALE_SCRIPT)
+                self.profile.scripts().insert(s_locale)
+
+                # 2. Injeta tradutor massivo contínuo no DocumentReady
+                s_trans = QWebEngineScript()
+                s_trans.setName("whatsapp_web_pt_br_massive_translator")
+                s_trans.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+                s_trans.setRunsOnSubFrames(True)
+                s_trans.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+                s_trans.setSourceCode(JS_MASSIVE_TRANSLATE_SCRIPT)
+                self.profile.scripts().insert(s_trans)
+            except Exception:
+                pass
+    WebView._configure_profile = patched_configure_profile
+
+except Exception as e:
+    sys.stderr.write(f"Aviso: falha ao aplicar patch do WhatsApp: {e}\n")
+
+from zapzap.__main__ import main
+if __name__ == "__main__":
+    sys.argv[0] = re.sub(r"(-script\.pyw|\.exe)?$", "", sys.argv[0])
+    sys.exit(main())

@@ -1,0 +1,18 @@
+[Desktop Entry]
+Name=WhatsApp
+GenericName=Aplicativo de Mensagens
+Comment=WhatsApp para Linux com tradução em português e integração nativa
+Exec=whatsapp %U
+Icon=whatsapp
+Terminal=false
+Type=Application
+StartupNotify=true
+StartupWMClass=whatsapp
+Categories=Network;InstantMessaging;Chat;
+Keywords=whatsapp;chat;messaging;zapzap;
+MimeType=x-scheme-handler/whatsapp;
+Actions=NewWindow;
+
+[Desktop Action NewWindow]
+Name=Nova Janela
+Exec=whatsapp

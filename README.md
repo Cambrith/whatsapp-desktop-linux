@@ -1,0 +1,118 @@
+# WhatsApp Desktop para Linux (Edição Otimizada em Português)
+
+<div align="center">
+
+![WhatsApp Linux](icons/whatsapp.svg)
+
+**Cliente Desktop do WhatsApp para distribuições Linux com tradução completa para o Português do Brasil (pt-BR), integração nativa com o sistema, badge dinâmico de notificações e renderização vetorial de alta definição sem distorções.**
+
+[![Linux](https://img.shields.io/badge/Plataforma-Linux-FCC624?logo=linux&logoColor=black)](#)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](#)
+[![PyQt6](https://img.shields.io/badge/Interface-PyQt6-41CD52?logo=qt&logoColor=white)](#)
+[![Licença](https://img.shields.io/badge/Licen%C3%A7a-GPLv3-blue.svg)](LICENSE)
+
+</div>
+
+---
+
+## 🌟 Principais Recursos
+
+- 🇧🇷 **Tradução Massiva para Português do Brasil (pt-BR)**:
+  - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
+  - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
+- 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
+  - **Menu da Janela / Barra de Título (KWin/CSD)**: Ícone exclusivo de alto contraste e preenchimento perfeito em miniaturas (16px a 24px), garantindo nitidez sem serrilhado ou compressão em temas escuros e claros.
+  - **Bandeja do Sistema (Systray)**: Logo oficial com badge circular vermelho suave no canto superior direito, perfeitamente calibrado com recuo lateral para máxima visibilidade e sem sobrepor o telefone branco.
+  - **Barra de Tarefas / Dock**: Identificação visual limpa com contador integrado e sincronizado.
+- 🚫 **Livre de Distrações**:
+  - Remoção completa de banners e telas de solicitação de apoio/doação do backend ZapZap.
+  - Rebranding 100% limpo com nome oficial "WhatsApp".
+- ⚡ **Desempenho e Leveza**:
+  - Renderização direta via `QSvgRenderer` com *super-sampling* 4x em memória, garantindo bordas suaves e anti-aliasing de nível gráfico profissional.
+
+---
+
+## 📋 Pré-requisitos
+
+Para executar este projeto, certifique-se de que sua distribuição possui o Python e o pacote base do ZapZap instalados:
+
+### No Arch Linux / Manjaro:
+```bash
+sudo pacman -S python python-pyqt6 python-pyqt6-webengine
+paru -S zapzap
+```
+
+### No Ubuntu / Debian / Pop!_OS:
+```bash
+sudo apt update
+sudo apt install python3 python3-pyqt6 python3-pyqt6.qtwebengine
+# Certifique-se de ter o pacote zapzap instalado via repositório ou flatpak
+```
+
+### No Fedora:
+```bash
+sudo dnf install python3 python3-qt6 python3-qt6-webengine
+```
+
+---
+
+## 🚀 Instalação Rápida
+
+Clone o repositório e execute o instalador automatizado:
+
+```bash
+git clone https://github.com/Cambrith/whatsapp-desktop-linux.git
+cd whatsapp-desktop-linux
+./install.sh
+```
+
+O script cuidará de:
+1. Copiar o executável otimizado para `~/.local/bin/whatsapp`.
+2. Instalar os ícones vetoriais em `~/.local/share/icons/`.
+3. Criar e registrar o atalho `whatsapp.desktop` em `~/.local/share/applications/`.
+4. Atualizar os bancos de dados de ícones e aplicativos do seu ambiente gráfico (KDE Plasma, GNOME, XFCE, etc.).
+
+---
+
+## 💻 Como Usar
+
+- **Pelo Menu de Aplicativos**: Procure por **WhatsApp** no menu Iniciar/Kickoff.
+- **Pelo Terminal**: Execute:
+  ```bash
+  whatsapp
+  ```
+
+---
+
+## 📂 Estrutura do Repositório
+
+```text
+whatsapp-desktop-linux/
+├── bin/
+│   └── whatsapp                # Script executável do launcher com os patches
+├── desktop/
+│   └── whatsapp.desktop        # Entrada de aplicativo .desktop do padrão FreeDesktop
+├── icons/
+│   ├── whatsapp.svg            # Ícone vetorial oficial
+│   └── whatsapp-window.svg     # Ícone otimizado para a janela do aplicativo
+├── install.sh                  # Script de instalação automatizada
+├── uninstall.sh                # Script de desinstalação
+├── LICENSE                     # Licença GNU General Public License v3.0
+└── README.md                   # Documentação do projeto
+```
+
+---
+
+## 🗑️ Desinstalação
+
+Caso queira remover as configurações instaladas:
+
+```bash
+./uninstall.sh
+```
+
+---
+
+## 📄 Licença
+
+Distribuído sob a licença [GPL-3.0](LICENSE). Consulte o arquivo `LICENSE` para mais informações.
