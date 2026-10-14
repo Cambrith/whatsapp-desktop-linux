@@ -21,9 +21,9 @@
   - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
-  - **Menu da Janela / Barra de Título (KWin/CSD)**: Ícone exclusivo de alto contraste e preenchimento perfeito em miniaturas (16px a 24px), garantindo nitidez sem serrilhado ou compressão em temas escuros e claros.
-  - **Bandeja do Sistema (Systray)**: Logo oficial com badge circular vermelho suave no canto superior direito, perfeitamente calibrado com recuo lateral para máxima visibilidade e sem sobrepor o telefone branco.
-  - **Barra de Tarefas / Dock**: Identificação visual limpa com contador integrado e sincronizado.
+  - **Menu da Janela / Barra de Título**: Mesmo logo da bandeja, com margens transparentes e leve recuo à direita nos tamanhos de 16, 20 e 22 px, evitando que o desenho fique encostado na borda da decoração.
+  - **Bandeja do Sistema (Systray)**: Contador vermelho compacto no canto inferior direito, número branco em negrito e borda fina. O logo mantém seu tamanho e centro quando chegam mensagens.
+  - **Barra de Tarefas / Dock**: Mesmo logo, sempre sem contador. A contagem de mensagens fica somente na bandeja, respeitando a preferência de contador do ZapZap.
 - 🚫 **Livre de Distrações**:
   - Remoção completa de banners e telas de solicitação de apoio/doação do backend ZapZap.
   - Rebranding 100% limpo com nome oficial "WhatsApp".
@@ -94,7 +94,7 @@ whatsapp-desktop-linux/
 │   └── whatsapp.desktop        # Entrada de aplicativo .desktop do padrão FreeDesktop
 ├── icons/
 │   ├── whatsapp.svg            # Ícone vetorial oficial
-│   └── whatsapp-window.svg     # Ícone otimizado para a janela do aplicativo
+│   └── whatsapp-window.svg     # Mesmo logo, mantido para compatibilidade
 ├── install.sh                  # Script de instalação automatizada
 ├── uninstall.sh                # Script de desinstalação
 ├── LICENSE                     # Licença GNU General Public License v3.0
@@ -116,3 +116,16 @@ Caso queira remover as configurações instaladas:
 ## 📄 Licença
 
 Distribuído sob a licença [GPL-3.0](LICENSE). Consulte o arquivo `LICENSE` para mais informações.
+
+## Verificação dos ícones
+
+Com as dependências do aplicativo instaladas, execute:
+
+```bash
+QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
+```
+
+Os testes verificam margens transparentes, contadores na bandeja, ausência de contador
+na janela/barra de tarefas e o carregamento do SVG a partir do checkout.
+A posição do botão de menu da janela é controlada pelo tema do KDE; o aplicativo
+ajusta apenas o desenho dentro desse espaço.
