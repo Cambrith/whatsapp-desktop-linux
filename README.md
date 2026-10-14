@@ -21,7 +21,7 @@
   - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
-  - **Janela principal**: Sem barra de título e sem a barra de menus; a interface começa diretamente no conteúdo do aplicativo. Os atalhos continuam disponíveis.
+  - **Janela principal**: Sem barra de título e sem a barra de menus; a interface começa diretamente no conteúdo do aplicativo. Os atalhos continuam disponíveis. A conta selecionada tem fundo discreto, sem contorno verde.
   - **Bandeja do Sistema (Systray)**: Contador vermelho compacto no canto inferior direito, número branco em negrito e borda fina. O logo mantém seu tamanho e centro quando chegam mensagens.
   - **Barra de Tarefas / Dock**: Mesmo logo, sempre sem contador. A contagem de mensagens fica somente na bandeja, respeitando a preferência de contador do ZapZap.
 - 🚫 **Livre de Distrações**:

@@ -488,6 +488,12 @@ try:
         hide_main_menubar(self)
     MainWindowView.retranslate_ui = safe_retranslate_ui
 
+    # Conta selecionada: manter o fundo discreto, sem contorno verde.
+    from zapzap.ui.components.browser_page_button import BrowserPageButton
+    BrowserPageButton.STYLE_SELECTED = BrowserPageButton.STYLE_SELECTED.replace(
+        "border: 1px solid palette(highlight);", "border: 1px solid transparent;"
+    )
+
     # 6. Scripts para o WhatsApp Web (DocumentCreation e Tradutor Massivo de DOM)
     from zapzap.features.browser.web.web_view import WebView
     orig_configure_profile = WebView._configure_profile
