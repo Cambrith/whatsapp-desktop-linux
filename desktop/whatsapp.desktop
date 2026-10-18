@@ -9,7 +9,7 @@ Type=Application
 StartupNotify=true
 StartupWMClass=whatsapp
 Categories=Network;InstantMessaging;Chat;
-Keywords=whatsapp;chat;messaging;zapzap;
+Keywords=whatsapp;chat;messaging;
 MimeType=x-scheme-handler/whatsapp;
 Actions=NewWindow;
 

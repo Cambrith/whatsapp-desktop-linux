@@ -22,12 +22,14 @@ APP_DIR="$HOME/.local/share/applications"
 
 # 1. Garantir diretórios necessários
 echo -e "${BLUE}[1/5]${NC} Criando diretórios do usuário..."
-mkdir -p "$BIN_DIR" "$ICON_DIR" "$APP_DIR"
+mkdir -p "$BIN_DIR" "$ICON_DIR" "$APP_DIR" "$HOME/.local/share/plasma_icons"
 
 # 2. Copiar executável
 echo -e "${BLUE}[2/5]${NC} Instalando binário em $BIN_DIR..."
 cp "$SCRIPT_DIR/bin/whatsapp" "$BIN_DIR/whatsapp"
 chmod +x "$BIN_DIR/whatsapp"
+cp "$SCRIPT_DIR/bin/fix-panel-launcher-permissions" "$BIN_DIR/fix-whatsapp-panel-launcher-permissions"
+chmod +x "$BIN_DIR/fix-whatsapp-panel-launcher-permissions"
 # Criar link para zapzap para compatibilidade com chamadas existentes
 ln -sf "$BIN_DIR/whatsapp" "$BIN_DIR/zapzap"
 
@@ -40,6 +42,16 @@ cp "$SCRIPT_DIR/icons/whatsapp-window.svg" "$ICON_DIR/whatsapp-window.svg"
 echo -e "${BLUE}[4/5]${NC} Instalando atalho de aplicativo em $APP_DIR..."
 cp "$SCRIPT_DIR/desktop/whatsapp.desktop" "$APP_DIR/whatsapp.desktop"
 cp "$SCRIPT_DIR/desktop/whatsapp.desktop" "$APP_DIR/zapzap.desktop"
+chmod +x "$APP_DIR/whatsapp.desktop" "$APP_DIR/zapzap.desktop"
+# Corrigir também atalhos dinâmicos enquanto a instância atual ainda está aberta.
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+    USER_CONFIG_DIR="$HOME/.config/systemd/user"
+    mkdir -p "$USER_CONFIG_DIR"
+    cp "$SCRIPT_DIR/systemd/whatsapp-panel-launcher-permissions.path" "$USER_CONFIG_DIR/whatsapp-panel-launcher-permissions.path"
+    cp "$SCRIPT_DIR/systemd/whatsapp-panel-launcher-permissions.service" "$USER_CONFIG_DIR/whatsapp-panel-launcher-permissions.service"
+    systemctl --user daemon-reload
+    systemctl --user enable --now whatsapp-panel-launcher-permissions.path
+fi
 
 # 5. Atualizar caches do sistema
 echo -e "${BLUE}[5/5]${NC} Atualizando bancos de dados de desktop e ícones..."

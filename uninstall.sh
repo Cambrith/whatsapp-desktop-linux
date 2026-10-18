@@ -17,9 +17,16 @@ echo ""
 BIN_DIR="$HOME/.local/bin"
 ICON_DIR="$HOME/.local/share/icons"
 APP_DIR="$HOME/.local/share/applications"
+USER_CONFIG_DIR="$HOME/.config/systemd/user"
 
 echo "Removendo binários e scripts..."
-rm -f "$BIN_DIR/whatsapp" "$BIN_DIR/zapzap"
+rm -f "$BIN_DIR/whatsapp" "$BIN_DIR/zapzap" "$BIN_DIR/fix-whatsapp-panel-launcher-permissions"
+
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+    systemctl --user disable --now whatsapp-panel-launcher-permissions.path 2>/dev/null || true
+    rm -f "$USER_CONFIG_DIR/whatsapp-panel-launcher-permissions.path" "$USER_CONFIG_DIR/whatsapp-panel-launcher-permissions.service"
+    systemctl --user daemon-reload
+fi
 
 echo "Removendo ícones..."
 rm -f "$ICON_DIR/whatsapp.svg" "$ICON_DIR/whatsapp-window.svg"

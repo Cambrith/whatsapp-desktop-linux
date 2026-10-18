@@ -21,11 +21,12 @@
   - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
-  - **Menu da Janela / Barra de Título (KWin/CSD)**: Ícone exclusivo de alto contraste e preenchimento perfeito em miniaturas (16px a 24px), garantindo nitidez sem serrilhado ou compressão em temas escuros e claros.
-  - **Bandeja do Sistema (Systray)**: Logo oficial com badge circular vermelho suave no canto superior direito, perfeitamente calibrado com recuo lateral para máxima visibilidade e sem sobrepor o telefone branco.
-  - **Barra de Tarefas / Dock**: Identificação visual limpa com contador integrado e sincronizado.
+  - **Janela principal**: Barra própria sem ícone, com os menus à esquerda, “WhatsApp” centralizado e controles vetoriais discretos à direita. Maximizar e restaurar alternam o desenho conforme o estado; fechar recebe destaque vermelho ao passar o cursor. A integração com o menu global é desativada apenas neste aplicativo. A conta selecionada tem fundo discreto, sem contorno verde.
+  - **Linha separadora configurável**: Em Aparência, ative/desative a linha abaixo da barra superior, escolha espessura de 1 a 6 px, largura de 10 a 100% e cor personalizada ou automática pelo tema.
+  - **Painel KDE Plasma**: O atalho superior do WhatsApp some enquanto a janela está aberta e retorna quando ela é fechada ou ocultada. Os atalhos com contador são executáveis; um monitor do Plasma também corrige arquivos que a instância já aberta ainda gere sem essa permissão. A bandeja do sistema fica sem ícone extra.
+  - **Barra de tarefas / Dock**: O ícone do aplicativo permanece limpo, sem contador azul. O atalho superior reaparece quando o WhatsApp é fechado ou ocultado.
 - 🚫 **Livre de Distrações**:
-  - Remoção completa de banners e telas de solicitação de apoio/doação do backend ZapZap.
+  - Remoção completa de banners e telas de solicitação de apoio/doação do aplicativo base.
   - Rebranding 100% limpo com nome oficial "WhatsApp".
 - ⚡ **Desempenho e Leveza**:
   - Renderização direta via `QSvgRenderer` com *super-sampling* 4x em memória, garantindo bordas suaves e anti-aliasing de nível gráfico profissional.
@@ -34,7 +35,7 @@
 
 ## 📋 Pré-requisitos
 
-Para executar este projeto, certifique-se de que sua distribuição possui o Python e o pacote base do ZapZap instalados:
+Para executar este projeto, certifique-se de que sua distribuição possui o Python e o pacote base do aplicativo instalados:
 
 ### No Arch Linux / Manjaro:
 ```bash
@@ -94,7 +95,7 @@ whatsapp-desktop-linux/
 │   └── whatsapp.desktop        # Entrada de aplicativo .desktop do padrão FreeDesktop
 ├── icons/
 │   ├── whatsapp.svg            # Ícone vetorial oficial
-│   └── whatsapp-window.svg     # Ícone otimizado para a janela do aplicativo
+│   └── whatsapp-window.svg     # Mesmo logo, mantido para compatibilidade
 ├── install.sh                  # Script de instalação automatizada
 ├── uninstall.sh                # Script de desinstalação
 ├── LICENSE                     # Licença GNU General Public License v3.0
@@ -116,3 +117,14 @@ Caso queira remover as configurações instaladas:
 ## 📄 Licença
 
 Distribuído sob a licença [GPL-3.0](LICENSE). Consulte o arquivo `LICENSE` para mais informações.
+
+## Verificação dos ícones
+
+Com as dependências do aplicativo instaladas, execute:
+
+```bash
+QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
+```
+
+Os testes verificam margens transparentes, o desenho do contador vermelho, a ausência do contador nativo azul na janela/barra de tarefas, a ocultação da bandeja, a moldura da janela e o carregamento do SVG a partir do checkout.
+A janela usa a barra nativa do KDE Plasma com controles de janela e menus internos. No KDE, `Alt+F4` fecha e `Ctrl+P` abre as configurações do aplicativo.
