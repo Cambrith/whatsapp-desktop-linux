@@ -609,6 +609,108 @@ try:
     from zapzap.ui.components.main_window import MainWindowView
     from zapzap.app.main_window_controller import MainWindowController
     from PyQt6.QtGui import QAction
+    from PyQt6.QtGui import QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap
+    from PyQt6.QtCore import QEvent, QPointF, QSize, QRectF
+
+    def make_titlebar_icon(button, symbol, color=None):
+        """Desenha controles vetoriais nítidos e coerentes em 18 px."""
+        pixmap = QPixmap(QSize(18, 18))
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        icon_color = color or button.palette().color(QPalette.ColorRole.ButtonText)
+        painter.setPen(QPen(icon_color, 1.55, Qt.PenStyle.SolidLine,
+                            Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        if symbol == "minimize":
+            painter.drawLine(QPointF(4, 12), QPointF(14, 12))
+        elif symbol == "maximize":
+            painter.drawRoundedRect(QRectF(4.25, 4.25, 9.5, 9.5), 1.0, 1.0)
+        elif symbol == "restore":
+            back = QPainterPath()
+            back.moveTo(7, 3.5)
+            back.lineTo(13, 3.5)
+            back.lineTo(14.5, 5)
+            back.lineTo(14.5, 10.5)
+            painter.drawPath(back)
+            painter.drawRoundedRect(QRectF(3.5, 7, 8, 7.5), 0.8, 0.8)
+        elif symbol == "close":
+            painter.drawLine(QPointF(5, 5), QPointF(13, 13))
+            painter.drawLine(QPointF(13, 5), QPointF(5, 13))
+        painter.end()
+        return QIcon(pixmap)
+
+    def refresh_titlebar_icons(self):
+        maximized = self.host_window.isMaximized()
+        self.minimize_button.setText("")
+        self.maximize_button.setText("")
+        self.close_button.setText("")
+        self.minimize_button.setIcon(make_titlebar_icon(self.minimize_button, "minimize"))
+        self.maximize_button.setIcon(make_titlebar_icon(
+            self.maximize_button, "restore" if maximized else "maximize"))
+        close_icon = QIcon(make_titlebar_icon(self.close_button, "close").pixmap(QSize(18, 18)))
+        hover_color = self.close_button.palette().color(QPalette.ColorRole.HighlightedText)
+        close_icon.addPixmap(make_titlebar_icon(self.close_button, "close", hover_color).pixmap(QSize(18, 18)),
+                             QIcon.Mode.Active)
+        self.close_button.setIcon(close_icon)
+        for button in (self.minimize_button, self.maximize_button, self.close_button):
+            button.setIconSize(QSize(18, 18))
+        self.minimize_button.setToolTip("Minimizar")
+        self.maximize_button.setToolTip("Restaurar" if maximized else "Maximizar")
+        self.close_button.setToolTip("Fechar")
+        self.minimize_button.setAccessibleName("Minimizar")
+        self.maximize_button.setAccessibleName("Restaurar" if maximized else "Maximizar")
+        self.close_button.setAccessibleName("Fechar")
+
+    _TitleBar.refresh_control_icons = refresh_titlebar_icons
+    orig_titlebar_apply_button_theme = _TitleBar._apply_button_theme
+    def patched_titlebar_apply_button_theme(self):
+        orig_titlebar_apply_button_theme(self)
+        for button in (self.minimize_button, self.maximize_button, self.close_button):
+            button.setFixedSize(34, 30)
+            button.setText("")
+            button.setIconSize(QSize(18, 18))
+        self.refresh_control_icons()
+    _TitleBar._apply_button_theme = patched_titlebar_apply_button_theme
+
+    orig_csr_apply_theme = ClientSideWindow._apply_theme
+    def polished_csr_apply_theme(self):
+        orig_csr_apply_theme(self)
+        base_styles = self.styleSheet().split("/* Cambrith window controls */")[0]
+        self.setStyleSheet(base_styles + """
+            /* Cambrith window controls */
+            QPushButton#csrWindowButton, QPushButton#csrWindowCloseButton {
+                background: transparent;
+                color: palette(button-text);
+                border: 1px solid transparent;
+                border-radius: 7px;
+                padding: 0;
+            }
+            QPushButton#csrWindowButton:hover {
+                background: palette(alternate-base);
+                border-color: palette(mid);
+            }
+            QPushButton#csrWindowButton:pressed {
+                background: palette(highlight);
+                border-color: palette(highlight);
+            }
+            QPushButton#csrWindowCloseButton:hover {
+                background: #c9363e;
+                border-color: #c9363e;
+            }
+            QPushButton#csrWindowCloseButton:pressed {
+                background: #a9232b;
+                border-color: #a9232b;
+            }
+        """)
+        self.title_bar.refresh_control_icons()
+    ClientSideWindow._apply_theme = polished_csr_apply_theme
+
+    orig_csr_change_event = ClientSideWindow.changeEvent
+    def patched_csr_change_event(self, event):
+        orig_csr_change_event(self, event)
+        if event.type() == QEvent.Type.WindowStateChange:
+            self.title_bar.refresh_control_icons()
+    ClientSideWindow.changeEvent = patched_csr_change_event
 
     # Algumas vistas usam o nome diretamente em vez de passar pelo gettext.
     try:

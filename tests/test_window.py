@@ -55,8 +55,28 @@ class WindowTests(unittest.TestCase):
         self.assertFalse(view.menubar.isHidden())
         self.assertEqual(view.menubar.property("cambrithTitlebarMenu"), True)
         self.assertEqual(host.title_bar.title_label.alignment(), Qt.AlignmentFlag.AlignCenter)
+        for button, name in (
+            (host.title_bar.minimize_button, "Minimizar"),
+            (host.title_bar.maximize_button, "Maximizar"),
+            (host.title_bar.close_button, "Fechar"),
+        ):
+            self.assertTrue(button.text() == "")
+            self.assertFalse(button.icon().isNull())
+            self.assertEqual(button.accessibleName(), name)
         for button in (host.title_bar.minimize_button, host.title_bar.maximize_button, host.title_bar.close_button):
             self.assertFalse(button.isHidden())
+
+        maximize_icon = host.title_bar.maximize_button.icon().pixmap(18, 18).toImage()
+        host.showMaximized()
+        self.app.processEvents()
+        self.assertTrue(host.isMaximized())
+        self.assertEqual(host.title_bar.maximize_button.toolTip(), "Restaurar")
+        restore_icon = host.title_bar.maximize_button.icon().pixmap(18, 18).toImage()
+        self.assertNotEqual(maximize_icon, restore_icon)
+        host.showNormal()
+        self.app.processEvents()
+        self.assertEqual(host.title_bar.maximize_button.toolTip(), "Maximizar")
+
         self.assertEqual(host.layout().contentsMargins().left(), 0)
         self.assertEqual(host.layout().contentsMargins().top(), 0)
         host.close()
