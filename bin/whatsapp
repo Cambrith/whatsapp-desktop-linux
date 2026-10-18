@@ -25,6 +25,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def ensure_desktop_launcher_executable(path):
+    """Mark a generated .desktop launcher as trusted/executable for Plasma."""
+    os.chmod(path, 0o755)
+
+
 def preserve_user_customizations():
     """Keep a private, rotating snapshot of files the system package cannot own."""
     home = Path.home()
@@ -619,6 +624,8 @@ try:
             else:
                 desktop_path = _pinned_launcher_template
 
+            # Plasma rejects locally generated .desktop launchers without +x.
+            ensure_desktop_launcher_executable(desktop_path)
             script = (
                 'var p=panels().find(p=>p.location==="top" && '
                 'p.widgets("org.kde.plasma.icon").some(w=>w.readConfig("url","")==='

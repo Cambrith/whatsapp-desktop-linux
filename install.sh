@@ -40,6 +40,7 @@ cp "$SCRIPT_DIR/icons/whatsapp-window.svg" "$ICON_DIR/whatsapp-window.svg"
 echo -e "${BLUE}[4/5]${NC} Instalando atalho de aplicativo em $APP_DIR..."
 cp "$SCRIPT_DIR/desktop/whatsapp.desktop" "$APP_DIR/whatsapp.desktop"
 cp "$SCRIPT_DIR/desktop/whatsapp.desktop" "$APP_DIR/zapzap.desktop"
+chmod +x "$APP_DIR/whatsapp.desktop" "$APP_DIR/zapzap.desktop"
 
 # 5. Atualizar caches do sistema
 echo -e "${BLUE}[5/5]${NC} Atualizando bancos de dados de desktop e ícones..."
