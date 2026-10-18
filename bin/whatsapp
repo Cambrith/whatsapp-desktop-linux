@@ -609,7 +609,7 @@ try:
     from zapzap.ui.components.main_window import MainWindowView
     from zapzap.app.main_window_controller import MainWindowController
     from PyQt6.QtGui import QAction
-    from PyQt6.QtGui import QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap
+    from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap
     from PyQt6.QtCore import QEvent, QPointF, QSize, QRectF
 
     def make_titlebar_icon(button, symbol, color=None):
@@ -775,6 +775,24 @@ try:
         self.title_label.setGeometry(self.rect())
         self.title_label.raise_()
     _TitleBar.resizeEvent = patched_titlebar_resize
+
+    orig_titlebar_paint_event = _TitleBar.paintEvent
+    def patched_titlebar_paint_event(self, event):
+        orig_titlebar_paint_event(self, event)
+        background = self.palette().color(QPalette.ColorRole.Window)
+        accent = self.palette().color(QPalette.ColorRole.Highlight)
+        blend = 0.42
+        separator = QColor(
+            round(background.red() * (1 - blend) + accent.red() * blend),
+            round(background.green() * (1 - blend) + accent.green() * blend),
+            round(background.blue() * (1 - blend) + accent.blue() * blend),
+        )
+        painter = QPainter(self)
+        painter.setPen(QPen(separator, 1))
+        y = self.height() - 1
+        painter.drawLine(0, y, self.width() - 1, y)
+        painter.end()
+    _TitleBar.paintEvent = patched_titlebar_paint_event
 
     orig_main_init = MainWindowView.__init__
     def patched_main_init(self, *args, **kwargs):

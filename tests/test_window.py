@@ -6,7 +6,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QWidget
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QPalette
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 
@@ -77,6 +77,12 @@ class WindowTests(unittest.TestCase):
         host.showNormal()
         self.app.processEvents()
         self.assertEqual(host.title_bar.maximize_button.toolTip(), "Maximizar")
+
+        bar_image = host.title_bar.grab().toImage()
+        left_separator = bar_image.pixelColor(0, bar_image.height() - 1)
+        right_separator = bar_image.pixelColor(bar_image.width() - 1, bar_image.height() - 1)
+        self.assertEqual(left_separator, right_separator)
+        self.assertNotEqual(left_separator, host.title_bar.palette().color(QPalette.ColorRole.Window))
 
         self.assertEqual(host.layout().contentsMargins().left(), 0)
         self.assertEqual(host.layout().contentsMargins().top(), 0)
