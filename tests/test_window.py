@@ -19,7 +19,7 @@ class WindowTests(unittest.TestCase):
         block = source[source.index("    # 4. Janela principal"):source.index("    # 6. Scripts")]
         cls.namespace = {
             "Qt": Qt,
-            "create_whatsapp_clean_icon": lambda: QIcon(str(repo_root / "icons" / "whatsapp.svg")),
+            "create_whatsapp_clean_icon": lambda: QIcon(str(repo_root / "icons" / "cambrith-whatsapp-window.svg")),
         }
         exec(textwrap.dedent(block), cls.namespace)
 
@@ -28,10 +28,10 @@ class WindowTests(unittest.TestCase):
         self.assertFalse(view.windowFlags() & Qt.WindowType.FramelessWindowHint)
         self.assertEqual(view.windowTitle(), "WhatsApp")
         self.assertFalse(view.windowIcon().isNull())
-        self.assertTrue(view.menubar.isHidden())
-        self.assertEqual(view.menubar.maximumHeight(), 0)
+        self.assertFalse(view.menubar.isHidden())
+        self.assertGreater(view.menubar.maximumHeight(), 0)
         view.retranslate_ui()
-        self.assertTrue(view.menubar.isHidden())
+        self.assertFalse(view.menubar.isHidden())
         view.close()
 
     def test_shortcut_actions_remain_attached(self):

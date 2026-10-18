@@ -8,8 +8,9 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QIcon, QPixmap
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QPixmap, QPainter
+from PyQt6.QtCore import Qt, QRectF, QSize
+from PyQt6.QtSvg import QSvgRenderer
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "bin" / "whatsapp"
@@ -20,7 +21,9 @@ def load_icons():
     block = textwrap.dedent(source[source.index("    # 3. Ícones oficiais"):
                                     source.index("    # 4. Janela principal")])
     namespace = {"os": os, "__file__": str(SOURCE),
-                 "QApplication": QApplication, "QIcon": QIcon, "QPixmap": QPixmap}
+                 "QApplication": QApplication, "QIcon": QIcon, "QPixmap": QPixmap,
+                 "QPainter": QPainter, "QRectF": QRectF, "QSvgRenderer": QSvgRenderer,
+                 "QSize": QSize}
     exec(compile(block, str(SOURCE), "exec"), namespace)
     return namespace
 
@@ -101,6 +104,12 @@ class IconTests(unittest.TestCase):
         with patch("builtins.open", side_effect=source_open):
             icons = load_icons()
         self.assertTrue(icons["get_svg_renderer"]().isValid())
+
+    def test_window_uses_the_redesigned_cambrith_icon(self):
+        icon = self.icons["create_whatsapp_clean_icon"]()
+        image = icon.pixmap(QSize(48, 48)).toImage()
+        self.assertFalse(icon.isNull())
+        self.assertGreater(image.pixelColor(24, 24).alpha(), 0)
 
 
 if __name__ == "__main__":

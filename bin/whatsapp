@@ -10,7 +10,7 @@ Garante que o WhatsApp execute com:
 2. Substituição total de qualquer menção residual a "ZapZap" por "WhatsApp".
 3. Contador de mensagens no ícone fixado ao painel, sem ícone extra na bandeja.
 4. Ícone proporcional da janela e barra de tarefas, sempre sem contador.
-5. Janela principal sem barras de título e menus, com atalhos preservados.
+5. Menus dentro da janela, sem exportação para o menu global do Plasma.
 """
 import sys
 import os
@@ -19,6 +19,9 @@ import gettext
 import builtins
 import json
 import subprocess
+
+# O menu global continua disponível para os outros aplicativos, mas não para o WhatsApp.
+os.environ["KDE_NO_GLOBAL_MENU"] = "1"
 
 # 1. Configurações iniciais do QtWebEngine
 try:
@@ -379,10 +382,36 @@ try:
                           Qt.TransformationMode.SmoothTransformation)
 
     def create_whatsapp_clean_icon():
-        """Mesmo logo para janela e barra de tarefas, com margens nos tamanhos pequenos."""
+        """Ícone renovado da janela, em tamanhos nativos e sem contador."""
+        window_icon_paths = (
+            os.path.expanduser("~/.local/share/icons/cambrith-whatsapp-window.svg"),
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "icons",
+                         "cambrith-whatsapp-window.svg"),
+        )
+        renderer = None
+        for path in window_icon_paths:
+            try:
+                candidate = QSvgRenderer(path)
+                if candidate.isValid():
+                    renderer = candidate
+                    break
+            except (OSError, TypeError):
+                continue
         icon = QIcon()
         for size in (16, 20, 22, 24, 32, 48, 64, 128, 256):
-            icon.addPixmap(render_whatsapp_window_pixmap(size))
+            pixmap = QPixmap(size * 4, size * 4)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            if renderer is not None:
+                painter = QPainter(pixmap)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+                painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+                renderer.render(painter, QRectF(0, 0, size * 4, size * 4))
+                painter.end()
+                pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
+                                       Qt.TransformationMode.SmoothTransformation)
+            else:
+                pixmap = render_whatsapp_window_pixmap(size)
+            icon.addPixmap(pixmap)
         return icon
 
     def create_whatsapp_tray_icon(count=0):
@@ -569,11 +598,11 @@ try:
     from zapzap.app.main_window_controller import MainWindowController
     from PyQt6.QtGui import QAction
 
-    def hide_main_menubar(self):
-        self.menubar.hide()
-        self.menubar.setMaximumHeight(0)
+    def show_main_menubar(self):
+        self.menubar.setMaximumHeight(16777215)
+        self.menubar.show()
 
-    MainWindowController.settings_menubar = hide_main_menubar
+    MainWindowController.settings_menubar = show_main_menubar
 
     orig_titlebar_init = _TitleBar.__init__
     def patched_titlebar_init(self, window, title, button_theme, settings):
@@ -591,8 +620,8 @@ try:
         # maximizar/restaurar e fechar.
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)
         self.retranslate_ui()
-        hide_main_menubar(self)
-        # O menu fica oculto, mas os atalhos continuam ativos na janela.
+        show_main_menubar(self)
+        # Os atalhos continuam ligados às ações do menu dentro da janela.
         for action in self.findChildren(QAction):
             if not action.shortcut().isEmpty():
                 self.addAction(action)
@@ -657,7 +686,7 @@ try:
         self.menuHelp.setTitle("Ajuda")
         if hasattr(self, "actionSobre_o_ZapZap"):
             self.actionSobre_o_ZapZap.setText("Sobre o WhatsApp")
-        hide_main_menubar(self)
+        show_main_menubar(self)
     MainWindowView.retranslate_ui = safe_retranslate_ui
 
     # Conta selecionada: manter o fundo discreto, sem contorno verde.
