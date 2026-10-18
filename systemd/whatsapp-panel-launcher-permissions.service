@@ -1,0 +1,6 @@
+[Unit]
+Description=Corrige permissões dos atalhos de notificações do WhatsApp
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/fix-whatsapp-panel-launcher-permissions

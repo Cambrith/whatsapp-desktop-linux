@@ -23,7 +23,7 @@
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
   - **Janela principal**: Barra própria sem ícone, com os menus à esquerda, “WhatsApp” centralizado e controles vetoriais discretos à direita. Maximizar e restaurar alternam o desenho conforme o estado; fechar recebe destaque vermelho ao passar o cursor. A integração com o menu global é desativada apenas neste aplicativo. A conta selecionada tem fundo discreto, sem contorno verde.
   - **Linha separadora configurável**: Em Aparência, ative/desative a linha abaixo da barra superior, escolha espessura de 1 a 6 px, largura de 10 a 100% e cor personalizada ou automática pelo tema.
-  - **Painel KDE Plasma**: O atalho superior do WhatsApp some enquanto a janela está aberta e retorna quando ela é fechada ou ocultada. A bandeja do sistema fica sem ícone extra.
+  - **Painel KDE Plasma**: O atalho superior do WhatsApp some enquanto a janela está aberta e retorna quando ela é fechada ou ocultada. Os atalhos com contador são executáveis; um monitor do Plasma também corrige arquivos que a instância já aberta ainda gere sem essa permissão. A bandeja do sistema fica sem ícone extra.
   - **Barra de tarefas / Dock**: O ícone do aplicativo permanece limpo, sem contador azul. O atalho superior reaparece quando o WhatsApp é fechado ou ocultado.
 - 🚫 **Livre de Distrações**:
   - Remoção completa de banners e telas de solicitação de apoio/doação do aplicativo base.

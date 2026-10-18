@@ -1,0 +1,9 @@
+[Unit]
+Description=Detecta atalhos de notificações do WhatsApp no painel Plasma
+
+[Path]
+PathChanged=%h/.local/share/plasma_icons
+Unit=whatsapp-panel-launcher-permissions.service
+
+[Install]
+WantedBy=default.target

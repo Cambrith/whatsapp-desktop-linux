@@ -2,6 +2,7 @@
 import ast
 import os
 import stat
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,6 +42,29 @@ class LauncherPermissionTests(unittest.TestCase):
     def test_installer_marks_desktop_entries_executable(self):
         installer = (self.root / "install.sh").read_text()
         self.assertIn('chmod +x "$APP_DIR/whatsapp.desktop" "$APP_DIR/zapzap.desktop"', installer)
+
+    def test_permission_repair_catches_shortcut_created_by_an_old_running_instance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            icons = home / ".local/share/plasma_icons"
+            apps = home / ".local/share/applications"
+            icons.mkdir(parents=True)
+            apps.mkdir(parents=True)
+            badge = icons / "com.rtosta.zapzap-badge-17.desktop"
+            badge.write_text("[Desktop Entry]\nType=Application\n")
+            badge.chmod(0o644)
+            env = os.environ.copy()
+            env["HOME"] = str(home)
+            subprocess.run([self.root / "bin/fix-panel-launcher-permissions"], check=True, env=env)
+            self.assertTrue(badge.stat().st_mode & stat.S_IXUSR)
+
+    def test_systemd_monitor_is_installed_and_removed_with_the_app(self):
+        path_unit = (self.root / "systemd/whatsapp-panel-launcher-permissions.path").read_text()
+        installer = (self.root / "install.sh").read_text()
+        uninstaller = (self.root / "uninstall.sh").read_text()
+        self.assertIn("PathChanged=%h/.local/share/plasma_icons", path_unit)
+        self.assertIn("enable --now whatsapp-panel-launcher-permissions.path", installer)
+        self.assertIn("disable --now whatsapp-panel-launcher-permissions.path", uninstaller)
 
 
 if __name__ == "__main__":

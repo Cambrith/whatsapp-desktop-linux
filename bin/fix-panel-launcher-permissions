@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s nullglob
+
+ICON_DIR="$HOME/.local/share/plasma_icons"
+launchers=("$ICON_DIR"/com.rtosta.zapzap-badge-*.desktop)
+launchers+=("$ICON_DIR/com.rtosta.zapzap.desktop")
+launchers+=("$HOME/.local/share/applications/com.rtosta.zapzap.desktop")
+
+existing=()
+for launcher in "${launchers[@]}"; do
+    [[ -f "$launcher" ]] && existing+=("$launcher")
+done
+if ((${#existing[@]})); then
+    chmod u+x -- "${existing[@]}"
+fi
