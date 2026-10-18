@@ -54,6 +54,7 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(view.menubar.parentWidget(), host.title_bar)
         self.assertFalse(view.menubar.isHidden())
         self.assertEqual(view.menubar.property("cambrithTitlebarMenu"), True)
+        self.assertIn("border: none", view.menubar.styleSheet())
         self.assertEqual(host.title_bar.title_label.alignment(), Qt.AlignmentFlag.AlignCenter)
         for button, name in (
             (host.title_bar.minimize_button, "Minimizar"),

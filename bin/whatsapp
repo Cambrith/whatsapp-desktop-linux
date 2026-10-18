@@ -804,6 +804,24 @@ try:
             menubar.setParent(title_bar)
             menubar.setProperty("cambrithTitlebarMenu", True)
             menubar.setMaximumHeight(title_bar.height())
+            # O estilo padrão desenha uma linha inferior na QMenuBar. Remova
+            # a borda e mantenha o fundo contínuo com a barra de título.
+            menubar.setStyleSheet("""
+                QMenuBar#menubar {
+                    border: none;
+                    background: transparent;
+                    padding: 0;
+                }
+                QMenuBar#menubar::item {
+                    border: none;
+                    background: transparent;
+                    padding: 6px 7px;
+                }
+                QMenuBar#menubar::item:selected {
+                    background: palette(alternate-base);
+                    border-radius: 5px;
+                }
+            """)
             menubar.show()
 
         # Reorganiza a faixa sem ícone: menus à esquerda, título no centro e
