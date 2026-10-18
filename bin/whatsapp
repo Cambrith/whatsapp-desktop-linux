@@ -17,6 +17,7 @@ import os
 import re
 import gettext
 import builtins
+import json
 import subprocess
 
 # 1. Configurações iniciais do QtWebEngine
@@ -392,15 +393,44 @@ try:
         return icon
 
     _pinned_badge_count = None
+    _last_unread_count = 0
     _pinned_launcher_template = os.path.expanduser(
-        "~/.local/share/plasma_icons/com.rtosta.zapzap (2).desktop"
+        "~/.local/share/plasma_icons/com.rtosta.zapzap.desktop"
+    )
+    _pinned_launcher_url = "file://" + os.path.expanduser(
+        "~/.local/share/applications/com.rtosta.zapzap.desktop"
     )
 
+    def _evaluate_plasma_script(script, expected):
+        try:
+            result = subprocess.run(
+                ["qdbus6", "org.kde.plasmashell", "/PlasmaShell",
+                 "org.kde.PlasmaShell.evaluateScript", script],
+                stdout=subprocess.PIPE,
+                text=True,
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+                check=False,
+            )
+            return result.returncode == 0 and expected in result.stdout
+        except Exception:
+            return False
+
     def update_pinned_panel_badge(count):
-        """Desenha o contador no atalho avulso do WhatsApp no painel superior."""
-        global _pinned_badge_count
+        """Desenha a contagem no atalho superior quando ele estiver visível."""
+        global _pinned_badge_count, _last_unread_count
         try:
             count = max(0, int(count or 0))
+            _last_unread_count = count
+            launcher_url = json.dumps(_pinned_launcher_url)
+            presence_script = (
+                'var p=panels().find(p=>p.location==="top" && '
+                'p.widgets("org.kde.plasma.icon").some('
+                f'w=>w.readConfig("url","")==={launcher_url})); '
+                'print(p?"pin-present":"pin-hidden")'
+            )
+            if not _evaluate_plasma_script(presence_script, "pin-present"):
+                return False
             if count == _pinned_badge_count:
                 return True
 
@@ -427,31 +457,66 @@ try:
                     desktop_data = desktop_data.replace("Icon=whatsapp", f"Icon={icon_path}", 1)
                     with open(desktop_path, "w", encoding="utf-8") as f:
                         f.write(desktop_data)
+                else:
+                    return False
             else:
                 desktop_path = _pinned_launcher_template
 
-            if os.path.isfile(desktop_path):
-                script = (
-                    'var p=panels().find(p=>p.id===70); '
-                    'var w=p&&p.widgets().find(w=>w.id===95); '
-                    f'if(w){{w.writeConfig("localPath",{desktop_path!r});w.reloadConfig();print("ok")}}'
-                )
-                result = subprocess.run(
-                    ["qdbus6", "org.kde.plasmashell", "/PlasmaShell",
-                     "org.kde.PlasmaShell.evaluateScript", script],
-                    stdout=subprocess.PIPE,
-                    text=True,
-                    stderr=subprocess.DEVNULL,
-                    timeout=2,
-                    check=False,
-                )
-                if result.returncode != 0 or "ok" not in result.stdout:
-                    return False
+            script = (
+                'var p=panels().find(p=>p.location==="top" && '
+                'p.widgets("org.kde.plasma.icon").some(w=>w.readConfig("url","")==='
+                f'{json.dumps(_pinned_launcher_url)})); '
+                'var w=p&&p.widgets("org.kde.plasma.icon").find('
+                f'w=>w.readConfig("url","")==={json.dumps(_pinned_launcher_url)}); '
+                f'if(w){{w.writeConfig("localPath",{json.dumps(desktop_path)});'
+                'w.reloadConfig();print("badge-updated")}'
+                'else{print("pin-hidden")} '
+            )
+            if _evaluate_plasma_script(script, "badge-updated"):
                 _pinned_badge_count = count
                 return True
         except Exception:
             return False
         return False
+
+    def set_pinned_panel_icon_visible(visible):
+        """Esconde o atalho enquanto a janela está aberta e o restaura ao fechar."""
+        global _pinned_badge_count
+        try:
+            launcher = json.dumps(_pinned_launcher_template)
+            launcher_url = json.dumps(_pinned_launcher_url)
+            if visible:
+                script = (
+                    'var p=panels().find(p=>p.location==="top"); var w=null; '
+                    'if(p){w=p.widgets("org.kde.plasma.icon").find('
+                    f'w=>w.readConfig("url","")==={launcher_url}); '
+                    'if(!w){w=p.addWidget("org.kde.plasma.icon");'
+                    f'w.writeConfig("localPath",{launcher});'
+                    f'w.writeConfig("url",{launcher_url});'
+                    '} } '
+                    'if(w){w.reloadConfig();print("pin-visible");}'
+                    'else{print("panel-missing");}'
+                )
+                restored = _evaluate_plasma_script(script, "pin-visible")
+                if restored:
+                    _pinned_badge_count = None
+                    if _last_unread_count:
+                        update_pinned_panel_badge(_last_unread_count)
+                return restored
+
+            script = (
+                'var p=panels().find(p=>p.location==="top"); '
+                'var w=p&&p.widgets("org.kde.plasma.icon").find('
+                f'w=>w.readConfig("url","")==={launcher_url}); '
+                'if(w){w.remove();print("pin-hidden")} '
+                'else{print("pin-hidden")} '
+            )
+            hidden = _evaluate_plasma_script(script, "pin-hidden")
+            if hidden:
+                _pinned_badge_count = None
+            return hidden
+        except Exception:
+            return False
 
     def create_whatsapp_window_icon(count=0):
         """Janela e barra de tarefas sempre usam o ícone limpo."""
@@ -541,6 +606,44 @@ try:
         self.title_bar.show()
         self.layout().setContentsMargins(0, 0, 0, 0)
     ClientSideWindow.__init__ = patched_csr_init
+
+    # O atalho superior acompanha a janela: some ao abrir e retorna ao ocultar/fechar.
+    orig_controller_show_event = MainWindowController.showEvent
+    orig_controller_hide_event = MainWindowController.hideEvent
+    orig_controller_close_event = MainWindowController.closeEvent
+
+    def patched_controller_show_event(self, event):
+        orig_controller_show_event(self, event)
+        set_pinned_panel_icon_visible(False)
+
+    def patched_controller_hide_event(self, event):
+        orig_controller_hide_event(self, event)
+        if not self.isMinimized():
+            set_pinned_panel_icon_visible(True)
+
+    def patched_controller_close_event(self, event):
+        orig_controller_close_event(self, event)
+        set_pinned_panel_icon_visible(True)
+
+    MainWindowController.showEvent = patched_controller_show_event
+    MainWindowController.hideEvent = patched_controller_hide_event
+    MainWindowController.closeEvent = patched_controller_close_event
+
+    import zapzap.app.application as zapzap_application
+    orig_create_main_window = zapzap_application.create_main_window
+    _quit_restore_connected = False
+
+    def patched_create_main_window(*args, **kwargs):
+        global _quit_restore_connected
+        window = orig_create_main_window(*args, **kwargs)
+        set_pinned_panel_icon_visible(False)
+        app = QApplication.instance()
+        if app is not None and not _quit_restore_connected:
+            app.aboutToQuit.connect(lambda: set_pinned_panel_icon_visible(True))
+            _quit_restore_connected = True
+        return window
+
+    zapzap_application.create_main_window = patched_create_main_window
 
     # 5. Barra de Menus da Janela Nativa (Sem distorção de atalhos e menus)
     orig_main_retranslate = MainWindowView.retranslate_ui
