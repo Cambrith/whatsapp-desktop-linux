@@ -69,8 +69,8 @@ class IconTests(unittest.TestCase):
 
     def test_counter_setting_and_native_badge(self):
         class Tray:
-            def setIcon(self, icon):
-                self.icon = icon
+            def hide(self):
+                self.hidden = True
         manager = SimpleNamespace(_settings=SimpleNamespace(notification_counter_enabled=True), _tray=Tray())
         from zapzap.features.tray.sys_tray_manager import SysTrayManager
         theme = self.icons["TrayIcon"].Type.Default
@@ -83,8 +83,7 @@ class IconTests(unittest.TestCase):
         self.assertEqual(manager.current_icon, theme)
         manager._settings.notification_counter_enabled = False
         SysTrayManager._set_icon(manager, theme, 12)
-        self.assertEqual(manager._tray.icon.pixmap(32).toImage(),
-                         self.icons["create_whatsapp_tray_icon"](0).pixmap(32).toImage())
+        self.assertTrue(manager._tray.hidden)
 
     def test_missing_renderer_produces_transparent_pixels(self):
         with patch.dict(self.icons, {"OFFICIAL_WHATSAPP_SVG": "", "_svg_renderer": None}):

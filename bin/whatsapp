@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 WhatsApp Launcher Wrapper
@@ -8,7 +8,7 @@ Garante que o WhatsApp execute com:
    - Toda a interface do WhatsApp Web (Accept-Language, cabeçalhos de locale pt-BR no DocumentCreation
      e tradução contínua de DOM com dicionário massivo cobrindo textos, placeholders, aria-labels e tooltips).
 2. Substituição total de qualquer menção residual a "ZapZap" por "WhatsApp".
-3. Ícone proporcional na bandeja com contador no canto inferior direito.
+3. Contador de mensagens no ícone fixado ao painel, sem ícone extra na bandeja.
 4. Ícone proporcional da janela e barra de tarefas, sempre sem contador.
 5. Janela principal sem barras de título e menus, com atalhos preservados.
 """
@@ -17,6 +17,7 @@ import os
 import re
 import gettext
 import builtins
+import subprocess
 
 # 1. Configurações iniciais do QtWebEngine
 try:
@@ -390,6 +391,68 @@ try:
             icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
         return icon
 
+    _pinned_badge_count = None
+    _pinned_launcher_template = os.path.expanduser(
+        "~/.local/share/plasma_icons/com.rtosta.zapzap (2).desktop"
+    )
+
+    def update_pinned_panel_badge(count):
+        """Desenha o contador no atalho avulso do WhatsApp no painel superior."""
+        global _pinned_badge_count
+        try:
+            count = max(0, int(count or 0))
+            if count == _pinned_badge_count:
+                return True
+
+            icon_dir = os.path.expanduser(
+                "~/.local/share/icons/cambrith-whatsapp-badges"
+            )
+            desktop_dir = os.path.expanduser("~/.local/share/plasma_icons")
+            os.makedirs(icon_dir, exist_ok=True)
+            os.makedirs(desktop_dir, exist_ok=True)
+
+            if count:
+                badge_name = str(count) if count < 100 else "99plus"
+                icon_path = os.path.join(icon_dir, f"whatsapp-{badge_name}.png")
+                if not render_whatsapp_pixmap(256, count=count, allow_badge=True).save(icon_path, "PNG"):
+                    return False
+                desktop_path = os.path.join(
+                    desktop_dir, f"com.rtosta.zapzap-badge-{badge_name}.desktop"
+                )
+                if os.path.isfile(_pinned_launcher_template):
+                    with open(_pinned_launcher_template, "r", encoding="utf-8") as f:
+                        desktop_data = f.read()
+                    if "Icon=whatsapp" not in desktop_data:
+                        return False
+                    desktop_data = desktop_data.replace("Icon=whatsapp", f"Icon={icon_path}", 1)
+                    with open(desktop_path, "w", encoding="utf-8") as f:
+                        f.write(desktop_data)
+            else:
+                desktop_path = _pinned_launcher_template
+
+            if os.path.isfile(desktop_path):
+                script = (
+                    'var p=panels().find(p=>p.id===70); '
+                    'var w=p&&p.widgets().find(w=>w.id===95); '
+                    f'if(w){{w.writeConfig("localPath",{desktop_path!r});w.reloadConfig();print("ok")}}'
+                )
+                result = subprocess.run(
+                    ["qdbus6", "org.kde.plasmashell", "/PlasmaShell",
+                     "org.kde.PlasmaShell.evaluateScript", script],
+                    stdout=subprocess.PIPE,
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                    timeout=2,
+                    check=False,
+                )
+                if result.returncode != 0 or "ok" not in result.stdout:
+                    return False
+                _pinned_badge_count = count
+                return True
+        except Exception:
+            return False
+        return False
+
     def create_whatsapp_window_icon(count=0):
         """Janela e barra de tarefas sempre usam o ícone limpo."""
         return create_whatsapp_clean_icon()
@@ -409,7 +472,7 @@ try:
 
     orig_app_set_icon = QApplication.setWindowIcon
 
-    # Atualizar o contador apenas na bandeja, mantendo a janela limpa.
+    # Atualiza a contagem no atalho fixado e preserva o ícone limpo da janela.
     try:
         from zapzap.features.tray.sys_tray_manager import SysTrayManager
         def patched_sys_tray_set_icon(self, icon_type, number_notifications=0):
@@ -417,11 +480,15 @@ try:
             self.current_icon = icon_type
             if not self._settings.notification_counter_enabled:
                 number_notifications = 0
-            self._tray.setIcon(create_whatsapp_tray_icon(number_notifications))
-            # Qt também publica um contador nativo no gerenciador de tarefas.
+            update_pinned_panel_badge(number_notifications)
+            # O usuário desativou a bandeja. Não atualize o SNI: isso pode
+            # reexibir o ícone a cada atualização de mensagens no Plasma.
+            hide_tray = getattr(self._tray, "hide", None)
+            if hide_tray is not None:
+                hide_tray()
             set_badge = getattr(QApplication.instance(), "setBadgeNumber", None)
             if set_badge is not None:
-                set_badge(0)
+                set_badge(0)  # Badge azul do gerenciador de tarefas sempre desativada; o contador fica no atalho fixado.
             win_icon = create_whatsapp_window_icon()
             orig_app_set_icon(win_icon)
             for widget in QApplication.topLevelWidgets():
