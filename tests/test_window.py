@@ -3,10 +3,12 @@ import os
 import textwrap
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QHBoxLayout, QWidget
-from PyQt6.QtGui import QIcon, QPalette
+from PyQt6.QtGui import QColor, QIcon, QPalette
+from PyQt6.QtWidgets import QColorDialog
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 
@@ -43,7 +45,6 @@ class WindowTests(unittest.TestCase):
 
     def test_client_side_titlebar_and_window_controls_are_visible(self):
         from zapzap.assets.themes.csr_button_theme_provider import CSRButtonTheme
-        from unittest.mock import patch
         view = self.namespace["MainWindowView"]()
         cls = self.namespace["ClientSideWindow"]
         with patch.object(cls, "_resolve_button_theme", return_value=CSRButtonTheme.DEFAULT):
@@ -78,12 +79,71 @@ class WindowTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(host.title_bar.maximize_button.toolTip(), "Maximizar")
 
-        bar_image = host.title_bar.grab().toImage()
-        left_separator = bar_image.pixelColor(0, bar_image.height() - 1)
-        right_separator = bar_image.pixelColor(bar_image.width() - 1, bar_image.height() - 1)
-        self.assertEqual(left_separator, right_separator)
-        self.assertNotEqual(left_separator, host.title_bar.palette().color(QPalette.ColorRole.Window))
+        from zapzap.core.config.settings_manager import SettingsManager
+        options = {
+            "window/titlebar_separator/enabled": True,
+            "window/titlebar_separator/thickness": 1,
+            "window/titlebar_separator/width_percent": 100,
+            "window/titlebar_separator/color": "#123456",
+        }
+        with patch.object(SettingsManager, "get",
+                          side_effect=lambda key, default=None: options.get(key, default)):
+            bar_image = host.title_bar.grab().toImage()
+            left_separator = bar_image.pixelColor(0, bar_image.height() - 1)
+            right_separator = bar_image.pixelColor(bar_image.width() - 1, bar_image.height() - 1)
+            self.assertEqual(left_separator.name(), "#123456")
+            self.assertEqual(right_separator, left_separator)
+
+            options["window/titlebar_separator/enabled"] = False
+            host.title_bar.update()
+            self.app.processEvents()
+            disabled_image = host.title_bar.grab().toImage()
+            background = host.title_bar.palette().color(QPalette.ColorRole.Window)
+            self.assertEqual(disabled_image.pixelColor(
+                disabled_image.width() // 2, disabled_image.height() - 1), background)
+
+            options["window/titlebar_separator/enabled"] = True
+            options["window/titlebar_separator/thickness"] = 3
+            options["window/titlebar_separator/width_percent"] = 50
+            host.title_bar.update()
+            self.app.processEvents()
+            customized_image = host.title_bar.grab().toImage()
+            center_x = customized_image.width() // 2
+            for y in range(customized_image.height() - 3, customized_image.height()):
+                self.assertEqual(customized_image.pixelColor(center_x, y).name(), "#123456")
+            self.assertEqual(customized_image.pixelColor(2, customized_image.height() - 1), background)
 
         self.assertEqual(host.layout().contentsMargins().left(), 0)
         self.assertEqual(host.layout().contentsMargins().top(), 0)
         host.close()
+
+    def test_appearance_settings_can_customize_and_persist_separator(self):
+        from zapzap.core.config.settings_manager import SettingsManager
+        controller_class = self.namespace["AppearanceSettingsController"]
+        values = {}
+        with patch.object(SettingsManager, "get",
+                          side_effect=lambda key, default=None: values.get(key, default)), \
+                patch.object(SettingsManager, "set",
+                              side_effect=lambda key, value: values.__setitem__(key, value)):
+            controller = controller_class()
+            self.assertEqual(controller.titlebar_separator_thickness_row.combo.count(), 6)
+            self.assertEqual(controller.titlebar_separator_width_row.combo.count(), 19)
+            self.assertTrue(controller.titlebar_separator_enabled_row.checkbox.isChecked())
+
+            controller.titlebar_separator_enabled_row.checkbox.setChecked(False)
+            self.assertIs(values["window/titlebar_separator/enabled"], False)
+            controller.titlebar_separator_enabled_row.checkbox.setChecked(True)
+            thickness = controller.titlebar_separator_thickness_row.combo.findData(4)
+            controller.titlebar_separator_thickness_row.combo.setCurrentIndex(thickness)
+            width = controller.titlebar_separator_width_row.combo.findData(65)
+            controller.titlebar_separator_width_row.combo.setCurrentIndex(width)
+            with patch.object(QColorDialog, "getColor", return_value=QColor("#0f6abd")):
+                controller.titlebar_separator_color_row.button.click()
+            self.assertEqual(values["window/titlebar_separator/color"], "#0f6abd")
+            controller.titlebar_separator_reset_color_row.button.click()
+
+            self.assertIs(values["window/titlebar_separator/enabled"], True)
+            self.assertEqual(values["window/titlebar_separator/thickness"], 4)
+            self.assertEqual(values["window/titlebar_separator/width_percent"], 65)
+            self.assertEqual(values["window/titlebar_separator/color"], "auto")
+            controller.close()

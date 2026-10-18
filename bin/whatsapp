@@ -608,6 +608,7 @@ try:
     from zapzap.ui.components.client_side_window import _TitleBar, ClientSideWindow
     from zapzap.ui.components.main_window import MainWindowView
     from zapzap.app.main_window_controller import MainWindowController
+    from zapzap.core.config.settings_manager import SettingsManager
     from PyQt6.QtGui import QAction
     from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap
     from PyQt6.QtCore import QEvent, QPointF, QSize, QRectF
@@ -779,20 +780,193 @@ try:
     orig_titlebar_paint_event = _TitleBar.paintEvent
     def patched_titlebar_paint_event(self, event):
         orig_titlebar_paint_event(self, event)
-        background = self.palette().color(QPalette.ColorRole.Window)
-        accent = self.palette().color(QPalette.ColorRole.Highlight)
+        if not SettingsManager.get("window/titlebar_separator/enabled", True):
+            return
+        color_value = str(SettingsManager.get("window/titlebar_separator/color", "auto"))
+        separator = QColor(color_value)
+        if color_value.lower() == "auto" or not separator.isValid():
+            background = self.palette().color(QPalette.ColorRole.Window)
+            accent = self.palette().color(QPalette.ColorRole.Highlight)
+            blend = 0.42
+            separator = QColor(
+                round(background.red() * (1 - blend) + accent.red() * blend),
+                round(background.green() * (1 - blend) + accent.green() * blend),
+                round(background.blue() * (1 - blend) + accent.blue() * blend),
+            )
+        thickness = max(1, min(6, int(SettingsManager.get(
+            "window/titlebar_separator/thickness", 1))))
+        width_percent = max(10, min(100, int(SettingsManager.get(
+            "window/titlebar_separator/width_percent", 100))))
+        line_width = max(1, round(self.width() * width_percent / 100))
+        left = (self.width() - line_width) // 2
+        right = left + line_width - 1
+        painter = QPainter(self)
+        painter.setPen(QPen(separator))
+        y = self.height() - thickness
+        for offset in range(thickness):
+            painter.drawLine(left, y + offset, right, y + offset)
+        painter.end()
+    _TitleBar.paintEvent = patched_titlebar_paint_event
+
+    def _separator_color_for_widget(palette):
+        color_value = str(SettingsManager.get("window/titlebar_separator/color", "auto"))
+        chosen = QColor(color_value)
+        if color_value.lower() != "auto" and chosen.isValid():
+            return chosen
+        background = palette.color(QPalette.ColorRole.Window)
+        accent = palette.color(QPalette.ColorRole.Highlight)
         blend = 0.42
-        separator = QColor(
+        return QColor(
             round(background.red() * (1 - blend) + accent.red() * blend),
             round(background.green() * (1 - blend) + accent.green() * blend),
             round(background.blue() * (1 - blend) + accent.blue() * blend),
         )
-        painter = QPainter(self)
-        painter.setPen(QPen(separator, 1))
-        y = self.height() - 1
-        painter.drawLine(0, y, self.width() - 1, y)
-        painter.end()
-    _TitleBar.paintEvent = patched_titlebar_paint_event
+
+    def _style_separator_color_button(button, color):
+        foreground = "#ffffff" if color.lightness() < 145 else "#17212b"
+        button.setText(color.name().upper())
+        button.setStyleSheet(
+            "QPushButton { background: %s; color: %s; border: 1px solid palette(mid); "
+            "border-radius: 8px; padding: 5px 12px; } "
+            "QPushButton:hover { border-color: palette(highlight); }" %
+            (color.name(), foreground)
+        )
+
+    # Opções da linha separadora na página Aparência.
+    try:
+        from PyQt6.QtWidgets import QApplication, QColorDialog
+        from zapzap.features.settings.pages.appearance.view import AppearanceSettingsView
+        from zapzap.features.settings.pages.appearance.controller import AppearanceSettingsController
+        from zapzap.ui.components import SettingsActionRow, SettingsCard, SettingsSection
+        from zapzap.ui.components import SettingsSelectRow, SettingsSwitchRow
+
+        _appearance_setup_ui = AppearanceSettingsView._setup_ui
+        def patched_appearance_setup_ui(self):
+            _appearance_setup_ui(self)
+            section = SettingsSection(
+                "Linha separadora da janela",
+                "Personalize a linha entre a barra superior e o WhatsApp.",
+            )
+            card = SettingsCard()
+            self.titlebar_separator_enabled_row = SettingsSwitchRow(
+                "Mostrar linha separadora",
+                "Exibe uma linha na borda inferior da barra superior.",
+            )
+            self.titlebar_separator_thickness_row = SettingsSelectRow(
+                "Espessura",
+                "Escolha a altura da linha em pixels.",
+            )
+            for value in range(1, 7):
+                self.titlebar_separator_thickness_row.combo.addItem(f"{value} px", value)
+            self.titlebar_separator_width_row = SettingsSelectRow(
+                "Largura",
+                "Escolha quanto da largura da janela a linha deve ocupar.",
+            )
+            for value in range(10, 101, 5):
+                self.titlebar_separator_width_row.combo.addItem(f"{value} %", value)
+            self.titlebar_separator_color_row = SettingsActionRow(
+                "Cor personalizada",
+                "Escolha uma cor ou mantenha a cor de destaque do tema.",
+                "Escolher",
+            )
+            self.titlebar_separator_reset_color_row = SettingsActionRow(
+                "Cor automática",
+                "Usa uma mistura suave da cor de destaque e do fundo do tema.",
+                "Usar tema",
+            )
+            for row in (
+                self.titlebar_separator_enabled_row,
+                self.titlebar_separator_thickness_row,
+                self.titlebar_separator_width_row,
+                self.titlebar_separator_color_row,
+                self.titlebar_separator_reset_color_row,
+            ):
+                self._configure_row_accessibility(row)
+            self.titlebar_separator_color_row.button.setMinimumWidth(108)
+            self.titlebar_separator_color_row.button.setAccessibleName("Escolher cor da linha")
+            self.titlebar_separator_reset_color_row.button.setAccessibleName("Usar cor automática do tema")
+            self.titlebar_separator_options_group = card.add_group(
+                self.titlebar_separator_enabled_row,
+                (
+                    self.titlebar_separator_thickness_row,
+                    self.titlebar_separator_width_row,
+                    self.titlebar_separator_color_row,
+                    self.titlebar_separator_reset_color_row,
+                ),
+            )
+            section.add_card(card)
+            self.add_section(section)
+        AppearanceSettingsView._setup_ui = patched_appearance_setup_ui
+
+        _appearance_controller_init = AppearanceSettingsController.__init__
+        def patched_appearance_controller_init(self, *args, **kwargs):
+            _appearance_controller_init(self, *args, **kwargs)
+            enabled_key = "window/titlebar_separator/enabled"
+            thickness_key = "window/titlebar_separator/thickness"
+            width_key = "window/titlebar_separator/width_percent"
+            color_key = "window/titlebar_separator/color"
+            self.titlebar_separator_enabled_row.checkbox.setChecked(
+                bool(SettingsManager.get(enabled_key, True)))
+            thickness = max(1, min(6, int(SettingsManager.get(thickness_key, 1))))
+            self.titlebar_separator_thickness_row.combo.setCurrentIndex(
+                self.titlebar_separator_thickness_row.combo.findData(thickness))
+            width_percent = max(10, min(100, int(SettingsManager.get(width_key, 100))))
+            self.titlebar_separator_width_row.combo.setCurrentIndex(
+                self.titlebar_separator_width_row.combo.findData(width_percent))
+            self.titlebar_separator_options_group.setEnabled(
+                self.titlebar_separator_enabled_row.checkbox.isChecked())
+
+            def refresh_separator():
+                app = QApplication.instance()
+                get_window = getattr(app, "getWindow", None) if app is not None else None
+                window = get_window() if callable(get_window) else None
+                if window is not None and getattr(window, "is_csr_wrapper", False):
+                    window.title_bar.update()
+                self._refresh_separator_color_button()
+
+            def set_enabled(enabled):
+                SettingsManager.set(enabled_key, bool(enabled))
+                self.titlebar_separator_options_group.setEnabled(enabled)
+                refresh_separator()
+
+            def set_thickness(_index):
+                value = self.titlebar_separator_thickness_row.combo.currentData()
+                if value is not None:
+                    SettingsManager.set(thickness_key, int(value))
+                    refresh_separator()
+
+            def set_width(_index):
+                value = self.titlebar_separator_width_row.combo.currentData()
+                if value is not None:
+                    SettingsManager.set(width_key, int(value))
+                    refresh_separator()
+
+            def choose_color():
+                current = self._effective_separator_color()
+                chosen = QColorDialog.getColor(current, self, "Cor da linha separadora")
+                if chosen.isValid():
+                    SettingsManager.set(color_key, chosen.name())
+                    refresh_separator()
+
+            def reset_color():
+                SettingsManager.set(color_key, "auto")
+                refresh_separator()
+
+            self.titlebar_separator_enabled_row.checkbox.toggled.connect(set_enabled)
+            self.titlebar_separator_thickness_row.combo.currentIndexChanged.connect(set_thickness)
+            self.titlebar_separator_width_row.combo.currentIndexChanged.connect(set_width)
+            self.titlebar_separator_color_row.button.clicked.connect(choose_color)
+            self.titlebar_separator_reset_color_row.button.clicked.connect(reset_color)
+            self._effective_separator_color = lambda: _separator_color_for_widget(
+                QApplication.instance().palette())
+            self._refresh_separator_color_button = lambda: _style_separator_color_button(
+                self.titlebar_separator_color_row.button,
+                self._effective_separator_color(),
+            )
+            self._refresh_separator_color_button()
+        AppearanceSettingsController.__init__ = patched_appearance_controller_init
+    except Exception:
+        pass
 
     orig_main_init = MainWindowView.__init__
     def patched_main_init(self, *args, **kwargs):
