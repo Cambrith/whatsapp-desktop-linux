@@ -21,11 +21,11 @@
   - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
-  - **Janela principal**: Barra nativa do KDE Plasma com um novo ícone Cambrith para o WhatsApp e os botões de minimizar, maximizar/restaurar e fechar. Os menus ficam dentro da janela; a integração com o menu global é desativada apenas neste aplicativo. A conta selecionada tem fundo discreto, sem contorno verde.
+  - **Janela principal**: Barra própria sem ícone, com os menus à esquerda, “WhatsApp” centralizado e os controles de janela à direita. A integração com o menu global é desativada apenas neste aplicativo. A conta selecionada tem fundo discreto, sem contorno verde.
   - **Painel KDE Plasma**: O atalho superior do WhatsApp some enquanto a janela está aberta e retorna quando ela é fechada ou ocultada. A bandeja do sistema fica sem ícone extra.
   - **Barra de tarefas / Dock**: O ícone do aplicativo permanece limpo, sem contador azul. O atalho superior reaparece quando o WhatsApp é fechado ou ocultado.
 - 🚫 **Livre de Distrações**:
-  - Remoção completa de banners e telas de solicitação de apoio/doação do backend ZapZap.
+  - Remoção completa de banners e telas de solicitação de apoio/doação do aplicativo base.
   - Rebranding 100% limpo com nome oficial "WhatsApp".
 - ⚡ **Desempenho e Leveza**:
   - Renderização direta via `QSvgRenderer` com *super-sampling* 4x em memória, garantindo bordas suaves e anti-aliasing de nível gráfico profissional.
@@ -34,7 +34,7 @@
 
 ## 📋 Pré-requisitos
 
-Para executar este projeto, certifique-se de que sua distribuição possui o Python e o pacote base do ZapZap instalados:
+Para executar este projeto, certifique-se de que sua distribuição possui o Python e o pacote base do aplicativo instalados:
 
 ### No Arch Linux / Manjaro:
 ```bash

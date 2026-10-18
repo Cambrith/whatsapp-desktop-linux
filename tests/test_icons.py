@@ -19,7 +19,7 @@ SOURCE = ROOT / "bin" / "whatsapp"
 def load_icons():
     source = SOURCE.read_text()
     block = textwrap.dedent(source[source.index("    # 3. Ícones oficiais"):
-                                    source.index("    # 4. Janela principal")])
+                                    source.index("    # 4. Barra de título própria")])
     namespace = {"os": os, "__file__": str(SOURCE),
                  "QApplication": QApplication, "QIcon": QIcon, "QPixmap": QPixmap,
                  "QPainter": QPainter, "QRectF": QRectF, "QSvgRenderer": QSvgRenderer,
@@ -35,7 +35,7 @@ class IconTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
         cls.icons = load_icons()
 
-    def test_title_has_transparent_edges_and_rightward_inset(self):
+    def test_window_logo_is_centered_and_fits_inside_its_square(self):
         for size in (16, 20, 22):
             with self.subTest(size=size):
                 image = self.icons["render_whatsapp_window_pixmap"](size).toImage()
@@ -44,15 +44,20 @@ class IconTests(unittest.TestCase):
                 self.assertTrue(points)
                 left = min(x for x, _ in points)
                 right = size - 1 - max(x for x, _ in points)
-                self.assertGreater(left, right)
+                self.assertLessEqual(abs(left - right), 1)
+                top = min(y for _, y in points)
+                bottom = size - 1 - max(y for _, y in points)
+                self.assertLessEqual(abs(top - bottom), 1)
                 for pos in range(size):
                     for x, y in ((0, pos), (size-1, pos), (pos, 0), (pos, size-1)):
                         self.assertEqual(image.pixelColor(x, y).alpha(), 0)
 
-    def test_large_window_icons_keep_the_tray_logo(self):
+    def test_window_icon_uses_the_same_proportional_logo_at_every_size(self):
         for size in (24, 32, 48, 64, 128, 256):
-            self.assertEqual(self.icons["render_whatsapp_window_pixmap"](size).toImage(),
-                             self.icons["render_whatsapp_pixmap"](size, allow_badge=False).toImage())
+            image = self.icons["render_whatsapp_window_pixmap"](size).toImage()
+            self.assertEqual(image.width(), size)
+            self.assertEqual(image.height(), size)
+            self.assertGreater(image.pixelColor(size // 2, size // 2).alpha(), 0)
 
     def test_counts_do_not_change_the_window_icon(self):
         for size in (16, 20, 22, 24, 32, 48, 64):
@@ -105,7 +110,7 @@ class IconTests(unittest.TestCase):
             icons = load_icons()
         self.assertTrue(icons["get_svg_renderer"]().isValid())
 
-    def test_window_uses_the_redesigned_cambrith_icon(self):
+    def test_window_icon_uses_the_same_logo_as_the_panel(self):
         icon = self.icons["create_whatsapp_clean_icon"]()
         image = icon.pixmap(QSize(48, 48)).toImage()
         self.assertFalse(icon.isNull())
