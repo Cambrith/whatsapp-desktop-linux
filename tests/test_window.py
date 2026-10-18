@@ -19,9 +19,9 @@ class WindowTests(unittest.TestCase):
         cls.namespace = {"Qt": Qt, "create_whatsapp_clean_icon": QIcon}
         exec(textwrap.dedent(block), cls.namespace)
 
-    def test_main_window_has_no_frame_or_menubar(self):
+    def test_main_window_keeps_desktop_window_decorations(self):
         view = self.namespace["MainWindowView"]()
-        self.assertTrue(view.windowFlags() & Qt.WindowType.FramelessWindowHint)
+        self.assertFalse(view.windowFlags() & Qt.WindowType.FramelessWindowHint)
         self.assertTrue(view.menubar.isHidden())
         self.assertEqual(view.menubar.maximumHeight(), 0)
         view.retranslate_ui()

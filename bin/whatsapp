@@ -522,7 +522,9 @@ try:
         orig_main_init(self, *args, **kwargs)
         self.setWindowTitle("WhatsApp")
         self.setWindowIcon(create_whatsapp_clean_icon())
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
+        # Mantém as decorações do KDE para mostrar título, minimizar,
+        # maximizar/restaurar e fechar.
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)
         self.retranslate_ui()
         hide_main_menubar(self)
         # O menu fica oculto, mas os atalhos continuam ativos na janela.
