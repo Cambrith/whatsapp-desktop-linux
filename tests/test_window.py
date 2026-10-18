@@ -1,4 +1,4 @@
-"""Verifica a janela sem barras sem iniciar o navegador ou ler conversas."""
+"""Verifica a janela e os controles sem iniciar o navegador ou ler conversas."""
 import os
 import textwrap
 import unittest
@@ -35,14 +35,16 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(view.actionSettings.shortcut().toString(), "Ctrl+P")
         view.close()
 
-    def test_client_side_titlebar_is_hidden(self):
+    def test_client_side_titlebar_and_window_controls_are_visible(self):
         from zapzap.assets.themes.csr_button_theme_provider import CSRButtonTheme
         from unittest.mock import patch
         view = self.namespace["MainWindowView"]()
         cls = self.namespace["ClientSideWindow"]
         with patch.object(cls, "_resolve_button_theme", return_value=CSRButtonTheme.DEFAULT):
             host = cls(view)
-        self.assertTrue(host.title_bar.isHidden())
+        self.assertFalse(host.title_bar.isHidden())
+        for button in (host.title_bar.minimize_button, host.title_bar.maximize_button, host.title_bar.close_button):
+            self.assertFalse(button.isHidden())
         self.assertEqual(host.layout().contentsMargins().left(), 0)
         self.assertEqual(host.layout().contentsMargins().top(), 0)
         host.close()

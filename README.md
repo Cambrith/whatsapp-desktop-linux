@@ -21,7 +21,7 @@
   - **Interface Nativa**: Menus da barra de ferramentas, janelas de configurações, abas, diálogos de atalhos e tooltips totalmente traduzidos.
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
-  - **Janela principal**: Sem barra de título e sem a barra de menus; a interface começa diretamente no conteúdo do aplicativo. Os atalhos continuam disponíveis. A conta selecionada tem fundo discreto, sem contorno verde.
+  - **Janela principal**: Barra superior restaurada com os botões de minimizar, maximizar/restaurar e fechar. A barra de menus continua oculta, com atalhos preservados. A conta selecionada tem fundo discreto, sem contorno verde.
   - **Painel KDE Plasma**: No atalho fixado do WhatsApp, o contador vermelho discreto acompanha as mensagens não lidas. O ícone extra da bandeja do sistema fica oculto.
   - **Barra de tarefas / Dock**: O ícone da janela não mostra contador azul; a contagem fica somente no atalho fixado do painel. A opção de contador do ZapZap continua sendo respeitada.
 - 🚫 **Livre de Distrações**:
@@ -126,6 +126,4 @@ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -v
 ```
 
 Os testes verificam margens transparentes, o desenho do contador vermelho, a ausência do contador nativo azul na janela/barra de tarefas, a ocultação da bandeja e o carregamento do SVG a partir do checkout.
-A janela principal não exibe decoração nem barra de menus. No KDE, use `Alt+F4`
-para fechar, a barra de tarefas para minimizar/restaurar e `Ctrl+P` para as
-configurações do aplicativo.
+A janela usa uma barra superior própria com controles de janela; o menu interno continua oculto. No KDE, `Alt+F4` fecha e `Ctrl+P` abre as configurações do aplicativo.

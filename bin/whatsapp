@@ -498,7 +498,7 @@ try:
     except Exception:
         pass
 
-    # 4. Janela principal sem barra de título nem barra de menus
+    # 4. Janela principal com barra superior e controles, sem o menu interno
     from zapzap.ui.components.client_side_window import _TitleBar, ClientSideWindow
     from zapzap.ui.components.main_window import MainWindowView
     from zapzap.app.main_window_controller import MainWindowController
@@ -536,7 +536,7 @@ try:
         orig_csr_init(self, inner_window, appearance_settings)
         self.setWindowTitle("WhatsApp")
         self.setWindowIcon(create_whatsapp_clean_icon())
-        self.title_bar.hide()
+        self.title_bar.show()
         self.layout().setContentsMargins(0, 0, 0, 0)
     ClientSideWindow.__init__ = patched_csr_init
 
