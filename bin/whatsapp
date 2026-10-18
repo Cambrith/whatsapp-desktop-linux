@@ -19,6 +19,72 @@ import gettext
 import builtins
 import json
 import subprocess
+import hashlib
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def preserve_user_customizations():
+    """Keep a private, rotating snapshot of files the system package cannot own."""
+    home = Path.home()
+    candidates = [
+        Path(__file__).resolve(),
+        home / ".local/bin/zapzap",
+        home / ".config/WhatsApp/WhatsApp.conf",
+        home / ".config/plasma-org.kde.plasma.desktop-appletsrc",
+        home / ".local/share/icons/whatsapp.svg",
+        home / ".local/share/icons/whatsapp.png",
+        home / ".local/share/icons/whatsapp-window.svg",
+    ]
+    for pattern in (
+        ".local/share/applications/com.rtosta.zapzap*.desktop",
+        ".local/share/plasma_icons/com.rtosta.zapzap*.desktop",
+        ".local/share/icons/cambrith-whatsapp-badges/*",
+    ):
+        candidates.extend(home.glob(pattern))
+
+    files = {}
+    for path in candidates:
+        try:
+            if path.is_file():
+                relative = path.resolve().relative_to(home.resolve()).as_posix()
+                files[relative] = path.resolve()
+        except (OSError, ValueError):
+            continue
+    if not files:
+        return
+
+    state_dir = home / ".local/state/whatsapp-customizations/backups"
+    try:
+        manifest = {
+            name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for name, path in sorted(files.items())
+        }
+        state_dir.mkdir(parents=True, exist_ok=True)
+        previous = sorted(state_dir.glob("*.zip"))
+        if previous:
+            with zipfile.ZipFile(previous[-1], "r") as archive:
+                old_manifest = json.loads(archive.read("manifest.json"))
+            if old_manifest == manifest:
+                return
+
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        archive_path = state_dir / f"customizations-{stamp}.zip"
+        temporary_path = archive_path.with_suffix(".zip.tmp")
+        with zipfile.ZipFile(temporary_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("manifest.json", json.dumps(manifest, indent=2))
+            for name, path in sorted(files.items()):
+                archive.write(path, name)
+        temporary_path.replace(archive_path)
+        for stale in sorted(state_dir.glob("customizations-*.zip"))[:-20]:
+            stale.unlink(missing_ok=True)
+    except (OSError, zipfile.BadZipFile, KeyError, json.JSONDecodeError):
+        # Backups must never prevent WhatsApp from starting.
+        return
+
+
+preserve_user_customizations()
 
 # O menu global continua disponível para os outros aplicativos, mas não para o WhatsApp.
 os.environ["KDE_NO_GLOBAL_MENU"] = "1"
@@ -34,9 +100,12 @@ try:
     import zapzap
     zapzap.__appname__ = "WhatsApp"
 
-    from PyQt6.QtGui import QImage, QPixmap, QIcon
+    from PyQt6.QtGui import QImage, QPixmap, QIcon, QAction
     from PyQt6.QtCore import QSize, QTranslator, Qt
-    from PyQt6.QtWidgets import QApplication, QHBoxLayout, QWidget
+    from PyQt6.QtWidgets import (
+        QApplication, QHBoxLayout, QWidget, QLabel, QAbstractButton,
+        QGroupBox, QMenu, QSystemTrayIcon, QTextEdit, QPlainTextEdit,
+    )
 
     # Substitui o nome original somente em textos da interface do aplicativo.
     _brand_pattern = re.compile(r"\bZapZap\b", re.IGNORECASE)
@@ -73,7 +142,55 @@ try:
                 return clean_brand_text(source_text)
             return ""
 
+    def install_brand_safe_setters(class_methods):
+        """Sanitize native UI labels, including hardcoded strings and tooltips."""
+        for widget_class, method_names in class_methods:
+            for method_name in method_names:
+                original = getattr(widget_class, method_name, None)
+                if original is None:
+                    continue
+
+                def make_wrapper(method):
+                    def wrapper(self, *args, **kwargs):
+                        safe_args = tuple(clean_brand_text(value) for value in args)
+                        safe_kwargs = {
+                            key: clean_brand_text(value)
+                            for key, value in kwargs.items()
+                        }
+                        return method(self, *safe_args, **safe_kwargs)
+                    return wrapper
+
+                setattr(widget_class, method_name, make_wrapper(original))
+
     _brand_translator = BrandTranslator()
+
+    install_brand_safe_setters((
+        (QWidget, ("setWindowTitle", "setToolTip", "setStatusTip", "setWhatsThis",
+                   "setAccessibleName", "setAccessibleDescription")),
+        (QLabel, ("setText",)),
+        (QLabel, ("__init__",)),
+        (QAbstractButton, ("setText",)),
+        (QGroupBox, ("setTitle",)),
+        (QGroupBox, ("__init__",)),
+        (QMenu, ("setTitle",)),
+        (QMenu, ("__init__",)),
+        (QAction, ("setText", "setToolTip", "setStatusTip", "setWhatsThis", "__init__")),
+        (QSystemTrayIcon, ("setToolTip", "showMessage")),
+    ))
+
+    # Relatórios técnicos somente de leitura também são conteúdo da interface;
+    # campos editáveis ficam intactos para não alterar texto escrito pelo usuário.
+    for text_widget_class in (QTextEdit, QPlainTextEdit):
+        original_set_plain_text = text_widget_class.setPlainText
+
+        def make_readonly_text_wrapper(method):
+            def wrapper(self, value):
+                if self.isReadOnly():
+                    value = clean_brand_text(value)
+                return method(self, value)
+            return wrapper
+
+        text_widget_class.setPlainText = make_readonly_text_wrapper(original_set_plain_text)
 
     # 2. Dicionário massivo para a interface nativa do aplicativo
     GLOBAL_NATIVE_TRANSLATIONS = {
