@@ -25,7 +25,7 @@ echo "Removendo ícones..."
 rm -f "$ICON_DIR/whatsapp.svg" "$ICON_DIR/whatsapp-window.svg"
 
 echo "Removendo atalhos desktop..."
-rm -f "$APP_DIR/whatsapp.desktop" "$APP_DIR/zapzap.desktop"
+rm -f "$APP_DIR/whatsapp.desktop" "$APP_DIR/zapzap.desktop" "$HOME/.config/autostart/whatsapp.desktop"
 
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "$APP_DIR" 2>/dev/null || true

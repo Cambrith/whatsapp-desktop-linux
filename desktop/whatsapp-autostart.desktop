@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=WhatsApp
+Comment=Inicia o WhatsApp minimizado na bandeja do sistema
+Exec=whatsapp --hideStart
+Icon=whatsapp
+Terminal=false
+X-KDE-autostart-phase=2
+X-GNOME-Autostart-enabled=true

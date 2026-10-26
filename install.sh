@@ -41,6 +41,10 @@ echo -e "${BLUE}[4/5]${NC} Instalando atalho de aplicativo em $APP_DIR..."
 cp "$SCRIPT_DIR/desktop/whatsapp.desktop" "$APP_DIR/whatsapp.desktop"
 cp "$SCRIPT_DIR/desktop/whatsapp.desktop" "$APP_DIR/zapzap.desktop"
 
+# Inicialização automática (abre escondido na bandeja do sistema)
+mkdir -p "$HOME/.config/autostart"
+cp "$SCRIPT_DIR/desktop/whatsapp-autostart.desktop" "$HOME/.config/autostart/whatsapp.desktop"
+
 # 5. Atualizar caches do sistema
 echo -e "${BLUE}[5/5]${NC} Atualizando bancos de dados de desktop e ícones..."
 if command -v update-desktop-database >/dev/null 2>&1; then

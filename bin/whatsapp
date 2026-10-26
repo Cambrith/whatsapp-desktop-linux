@@ -30,7 +30,7 @@ try:
     zapzap.__appname__ = "WhatsApp"
 
     from PyQt6.QtGui import QImage, QPixmap, QIcon
-    from PyQt6.QtCore import QSize
+    from PyQt6.QtCore import QSize, QEvent, QPoint
     from PyQt6.QtWidgets import QApplication
 
     # 2. Dicionário massivo para a interface nativa do aplicativo
@@ -137,6 +137,84 @@ try:
         "Linux Chrome": "Google Chrome (Linux)",
     }
 
+    # Idioma fixo: português do Brasil (o catálogo oficial do aplicativo fica em zapzap/po)
+    os.environ["LANGUAGE"] = "pt_BR"
+    pkg_po = os.path.join(os.path.dirname(zapzap.__file__), "po")
+
+    # Traduções complementares para textos que o catálogo pt_BR não cobre
+    GLOBAL_NATIVE_TRANSLATIONS.update({
+        "Unmute": "Reativar som",
+        "Account selector": "Seletor de contas",
+        "DevTools - {}": "Ferramentas do desenvolvedor - {}",
+        "Delete file": "Excluir arquivo",
+        "Ctrl+S to save": "Ctrl+S para salvar",
+        "Adjust interface chrome, quick access, theme, tray icon, grid view, and window decorations.": "Ajuste a moldura da interface, o acesso rápido, o tema, o ícone da bandeja, a visualização em grade e as decorações da janela.",
+        "Preview in WhatsApp": "Pré-visualizar no aplicativo",
+        "Download directly (where supported)": "Baixar diretamente (quando houver suporte)",
+        "PDF file clicks": "Cliques em arquivos PDF",
+        "Preview PDF files in WhatsApp or download them when the browser handles the PDF. WhatsApp's own preview may still open.": "Pré-visualize arquivos PDF no aplicativo ou baixe-os quando o navegador tratar o PDF. A pré-visualização do próprio aplicativo ainda pode abrir.",
+        "Avoids GPU-backed video frame buffers.\nMay help with black screens, flickering, and GPU crashes.\nRestart required.": "Evita buffers de quadros de vídeo na GPU.\nPode ajudar com telas pretas, cintilação e falhas da GPU.\nÉ necessário reiniciar.",
+        "Disables zero-copy GPU buffer transfers.\nMay improve compatibility with some graphics drivers.\nRestart required.": "Desativa as transferências de buffer da GPU sem cópia (zero-copy).\nPode melhorar a compatibilidade com alguns drivers gráficos.\nÉ necessário reiniciar.",
+        "Rendering profile": "Perfil de renderização",
+        "Choose a predefined rendering configuration or customize individual options.": "Escolha uma configuração de renderização predefinida ou personalize as opções individualmente.",
+        "Compatibility": "Compatibilidade",
+        "Manual": "Manual",
+        "Recommended settings with hardware acceleration enabled.": "Configurações recomendadas, com a aceleração de hardware ativada.",
+        "Improves stability on systems with video, flickering or GPU rendering issues.": "Melhora a estabilidade em sistemas com problemas de vídeo, cintilação ou renderização na GPU.",
+        "Use custom GPU and rendering options.": "Usar opções personalizadas de GPU e renderização.",
+        "Disable GPU memory buffer for video": "Desativar o buffer de memória da GPU para vídeo",
+        "Avoid GPU-backed video frame buffers. May help with black screens, flickering and GPU crashes.": "Evita buffers de quadros de vídeo na GPU. Pode ajudar com telas pretas, cintilação e falhas da GPU.",
+        "Disable zero-copy": "Desativar zero-copy",
+        "Disable zero-copy GPU buffer transfers. May improve compatibility with some graphics drivers.": "Desativa as transferências de buffer da GPU sem cópia. Pode melhorar a compatibilidade com alguns drivers gráficos.",
+        "Display backend": "Backend de exibição",
+        "Automatic is recommended and uses the native backend for the current session. X11 is available as a compatibility fallback.": "O modo automático é recomendado e usa o backend nativo da sessão atual. O X11 está disponível como alternativa de compatibilidade.",
+        "Recommended. Use Wayland in Wayland sessions and X11 in X11 sessions.": "Recomendado. Usa Wayland em sessões Wayland e X11 em sessões X11.",
+        "Force the native Wayland backend.": "Forçar o backend nativo do Wayland.",
+        "Use the X11 backend. In Wayland sessions, this runs through XWayland.": "Usar o backend X11. Em sessões Wayland, ele roda por meio do XWayland.",
+        "Choose the Qt display backend. Changes require restart.": "Escolha o backend de exibição do Qt. As alterações exigem reinício.",
+        "Unread messages: {}": "Mensagens não lidas: {}",
+        "Account disabled - click to activate or right-click to manage": "Conta desativada - clique para ativar ou use o botão direito para gerenciar",
+        "Notifications muted": "Notificações silenciadas",
+        "No account activity to show yet.": "Ainda não há atividade de contas para mostrar.",
+        "Monitoring panel": "Painel de monitoramento",
+        "Audio": "Áudio",
+    })
+
+    # Remove qualquer menção ao aplicativo (ZapZap) e ao WhatsApp nos textos da interface nativa
+    import re as _re
+    _BRAND = r"(?:ZapZap|WhatsApp(?: Web)?)"
+    _BRAND_EXACT = {
+        "ZapZap": "Opções",
+        "WhatsApp": "Opções",
+        "WhatsApp Web": "Mensagens",
+        "WhatsApp Web para Linux": "Aplicativo de mensagens para Linux",
+        "Sobre o ZapZap": "Sobre",
+        "Sobre o WhatsApp": "Sobre",
+        "Configurações do ZapZap": "Configurações",
+        "Bem-vindo ao ZapZap": "Bem-vindo",
+        "Bloqueio do WhatsApp": "Bloqueio do aplicativo",
+        "Repositório oficial do ZapZap no GitHub: rafatosta/zapzap": "Repositório oficial do aplicativo no GitHub",
+        "Saiba mais sobre o ZapZap ↗": "Saiba mais ↗",
+        "ZapZap {version} está disponível": "A versão {version} está disponível",
+        "ZapZap {latest} está disponível. Versão atual: {current}.": "A versão {latest} está disponível. Versão atual: {current}.",
+        "Ícone do aplicativo ZapZap": "Ícone do aplicativo",
+    }
+    def scrub_brand(t):
+        if not isinstance(t, str) or not t:
+            return t
+        if not _re.search(r"zapzap|whatsapp", t, _re.I):
+            return t
+        if t in _BRAND_EXACT:
+            return _BRAND_EXACT[t]
+        if t.lstrip().startswith(("/", "~", "http://", "https://")):
+            return t  # caminhos e URLs reais não podem ser alterados
+        t = _re.sub(r"\s*[:\-–]?\s*rafatosta/zapzap", "", t)
+        t = _re.sub(r"\b(do|no|ao|pelo|com o|para o|o|Do|No|Ao|Pelo|O) " + _BRAND + r"\b", lambda m: m.group(1) + " aplicativo", t)
+        t = _re.sub(r"aplicativo " + _BRAND + r"\b", "aplicativo", t)
+        t = _re.sub(r"^" + _BRAND + r"\b", "O aplicativo", t)
+        t = _re.sub(r"\b" + _BRAND + r"\b", "aplicativo", t)
+        return t
+
     # Interceptador global do gettext
     orig_gettext_fn = gettext.gettext
     def deep_gettext(msg):
@@ -145,31 +223,113 @@ try:
         res = orig_gettext_fn(msg)
         if res == msg or not res:
             if msg in GLOBAL_NATIVE_TRANSLATIONS:
-                return GLOBAL_NATIVE_TRANSLATIONS[msg]
-        return res
+                res = GLOBAL_NATIVE_TRANSLATIONS[msg]
+        return scrub_brand(res)
 
     gettext.gettext = deep_gettext
     builtins._ = deep_gettext
 
-    local_po_dir = os.path.expanduser("~/.local/share/zapzap-patch/po")
     from zapzap.core.i18n.translation_manager import TranslationManager
-    TranslationManager._locale_dir = local_po_dir
+    TranslationManager._locale_dir = pkg_po
 
     orig_apply = TranslationManager.apply
     def patched_apply():
         orig_apply()
+        # o app foi renomeado para "WhatsApp"; o catálogo continua no domínio "zapzap"
+        gettext.bindtextdomain("zapzap", pkg_po)
+        gettext.textdomain("zapzap")
         try:
-            t = gettext.translation(
-                "zapzap",
-                localedir=local_po_dir,
-                languages=["pt_BR"],
-                fallback=True
-            )
+            t = gettext.translation("zapzap", localedir=pkg_po, languages=["pt_BR"], fallback=True)
             t.install()
         except Exception:
             pass
+        builtins._ = deep_gettext
     TranslationManager.apply = staticmethod(patched_apply)
     TranslationManager.apply()
+
+    # Traduz e limpa menções também nos widgets criados com texto fixo (fora do gettext)
+    from PyQt6.QtWidgets import (QLabel, QAbstractButton, QPushButton, QCheckBox, QRadioButton,
+                                 QGroupBox, QMenu, QLineEdit, QTextEdit, QPlainTextEdit, QWidget)
+    from PyQt6.QtGui import QAction
+
+    _LANG_PT = {"English": "Inglês", "Arabic": "Árabe", "Bosnian": "Bósnio", "German": "Alemão",
+                "Spanish": "Espanhol", "French": "Francês", "Hebrew": "Hebraico", "Hungarian": "Húngaro",
+                "Italian": "Italiano", "Dutch": "Holandês", "Polish": "Polonês", "Portuguese": "Português",
+                "Russian": "Russo", "Swedish": "Sueco", "Ukrainian": "Ucraniano", "Chinese": "Chinês",
+                "Turkish": "Turco", "Japanese": "Japonês", "Korean": "Coreano", "Czech": "Tcheco",
+                "Greek": "Grego", "Hindi": "Hindi", "Indonesian": "Indonésio", "Persian": "Persa",
+                "Romanian": "Romeno", "Danish": "Dinamarquês", "Finnish": "Finlandês", "Norwegian": "Norueguês",
+                "Catalan": "Catalão", "Vietnamese": "Vietnamita", "Thai": "Tailandês", "Bulgarian": "Búlgaro"}
+    _TERR_PT = {"United States": "Estados Unidos", "Egypt": "Egito", "Bosnia & Herzegovina": "Bósnia e Herzegovina",
+                "Germany": "Alemanha", "Spain": "Espanha", "France": "França", "Israel": "Israel",
+                "Hungary": "Hungria", "Italy": "Itália", "Netherlands": "Países Baixos", "Poland": "Polônia",
+                "Brazil": "Brasil", "Portugal": "Portugal", "Russia": "Rússia", "Sweden": "Suécia",
+                "Ukraine": "Ucrânia", "China": "China", "United Kingdom": "Reino Unido", "Canada": "Canadá",
+                "Australia": "Austrália", "Mexico": "México", "Argentina": "Argentina", "Turkey": "Turquia",
+                "Japan": "Japão", "India": "Índia", "Taiwan": "Taiwan"}
+    _LOC_RE = _re.compile(r"^([A-Z][a-z]+)(?: \(([^)]+)\))?( - [A-Za-z_]+)?$")
+    def _pt_locale_label(text):
+        m = _LOC_RE.match(text)
+        if not m or m.group(1) not in _LANG_PT:
+            return text
+        out = _LANG_PT[m.group(1)]
+        if m.group(2):
+            out += " (" + _TERR_PT.get(m.group(2), m.group(2)) + ")"
+        return out + (m.group(3) or "")
+
+    def ui_text(text):
+        if not isinstance(text, str) or not text:
+            return text
+        text = _pt_locale_label(text)
+        if text in GLOBAL_NATIVE_TRANSLATIONS:
+            text = GLOBAL_NATIVE_TRANSLATIONS[text]
+        else:
+            tr = orig_gettext_fn(text)
+            if tr and tr != text:
+                text = tr
+        return scrub_brand(text)
+
+    def _hook_setter(cls, name, skip_attr="_wa_keep"):
+        orig = getattr(cls, name)
+        def call_orig(self, *a, **k):
+            if hasattr(orig, "__get__"):
+                return orig.__get__(self, type(self))(*a, **k)
+            return orig(self, *a, **k)
+        def hooked(self, text, *a, **k):
+            if not getattr(self, skip_attr, False):
+                text = ui_text(text)
+            return call_orig(self, text, *a, **k)
+        setattr(cls, name, hooked)
+        return call_orig
+
+    def _hook_ctor(cls):
+        orig = cls.__init__
+        def init(self, *a, **k):
+            a = list(a)
+            for i, x in enumerate(a):
+                if isinstance(x, str):
+                    a[i] = ui_text(x)
+                    break
+                if not hasattr(x, "isNull") and i >= 1:
+                    break
+            orig(self, *a, **k)
+        cls.__init__ = init
+
+    _orig_label_settext = _hook_setter(QLabel, "setText")
+    _hook_setter(QAbstractButton, "setText")
+    _hook_setter(QAction, "setText")
+    _hook_setter(QAction, "setToolTip")
+    _hook_setter(QWidget, "setToolTip")
+    _hook_setter(QLineEdit, "setPlaceholderText")
+    _hook_setter(QTextEdit, "setPlaceholderText")
+    _hook_setter(QPlainTextEdit, "setPlaceholderText")
+    _hook_setter(QMenu, "setTitle")
+    _hook_setter(QGroupBox, "setTitle")
+    for _c in (QLabel, QPushButton, QCheckBox, QRadioButton, QGroupBox, QMenu, QAction):
+        try:
+            _hook_ctor(_c)
+        except Exception:
+            pass
 
     # Patchear as abas de configurações
     try:
@@ -195,6 +355,8 @@ try:
                 disp = USER_AGENT_LABELS_PT_BR[text]
                 data = userData if userData is not None else text
                 return orig_combo_add_item(self, disp, data)
+            if userData is not None:
+                text = ui_text(text)
             return orig_combo_add_item(self, text, userData)
         ComboBox.addItem = patched_combo_add_item
 
@@ -210,6 +372,16 @@ try:
         ComboBox.findData = patched_combo_find_data
     except Exception:
         pass
+
+    # Nunca mostrar o aviso de apoio ao desenvolvimento (bloco independente dos demais)
+    try:
+        from zapzap.features.donation.controller import DonationController
+        from zapzap.features.donation.view import DonationView
+        DonationController.should_show = classmethod(lambda cls: False)
+        DonationController.showMessage = staticmethod(lambda parent=None: None)
+        DonationView.show = lambda self, *a, **k: None
+    except Exception as _e:
+        sys.stderr.write(f"Aviso: aviso de apoio não desativado: {_e}\n")
 
     # Remoção total da opção "Apoiar o ZapZap" de toda a interface sem quebrar geometria de layouts
     try:
@@ -266,6 +438,7 @@ try:
 
         from zapzap.core.config.settings_manager import SettingsManager
         SettingsManager.set("notifications/donation_message_enabled", False)
+
     except Exception:
         pass
 
@@ -305,16 +478,29 @@ try:
     def get_win_svg_renderer():
         global _win_svg_renderer
         if _win_svg_renderer is None:
-            _win_svg_renderer = QSvgRenderer(QByteArray(WINDOW_WHATSAPP_SVG.encode("utf-8")))
+            # Usa o logo oficial (quadrado, sem distorção); o SVG manual só é fallback
+            src = OFFICIAL_WHATSAPP_SVG or WINDOW_WHATSAPP_SVG
+            _win_svg_renderer = QSvgRenderer(QByteArray(src.encode("utf-8")))
         return _win_svg_renderer
 
+    _tray_svg_renderer = None
+
+    def get_tray_svg_renderer():
+        """Logo recortado rente ao balão verde (sem a margem do SVG) para
+        preencher a bandeja e aparecer maior."""
+        global _tray_svg_renderer
+        if _tray_svg_renderer is None and OFFICIAL_WHATSAPP_SVG:
+            _tray_svg_renderer = QSvgRenderer(QByteArray(OFFICIAL_WHATSAPP_SVG.encode("utf-8")))
+            _tray_svg_renderer.setViewBox(QRectF(9.5, 10.5, 154, 154))
+        return _tray_svg_renderer
+
     def render_whatsapp_pixmap(size, count=0, allow_badge=True):
-        renderer = get_svg_renderer()
+        renderer = get_tray_svg_renderer()
         if not renderer:
             return QPixmap(size, size)
 
         # Super-sampling 4x para antialiasing de alta fidelidade
-        scale = 4
+        scale = 8
         high = size * scale
         pix = QPixmap(high, high)
         pix.fill(Qt.GlobalColor.transparent)
@@ -324,39 +510,38 @@ try:
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
 
+        # Logo ocupa 100% da area (maior na bandeja); o badge sobrepoe o canto superior direito
         if count > 0 and allow_badge:
-            # Logo oficial do WhatsApp com margem para o badge no topo direito
-            logo_w = high * 0.86
-            logo_h = high * 0.86
-            renderer.render(p, QRectF(0, high * 0.14, logo_w, logo_h))
+            # Logo levemente menor, encostado embaixo/esquerda, deixando o canto superior direito livre pro balão
+            renderer.render(p, QRectF(0, high * 0.04, high * 0.96, high * 0.96))
+        else:
+            renderer.render(p, QRectF(0, 0, high, high))
 
+        if count > 0 and allow_badge:
             text = str(count) if count < 100 else "99+"
-            badge_h = high * 0.44
+            badge_h = high * 0.50
             if len(text) == 1:
                 badge_w = badge_h
             else:
-                badge_w = badge_h * (1.0 + 0.35 * (len(text) - 1))
+                badge_w = badge_h * (1.0 + 0.30 * (len(text) - 1))
 
-            # Notificação ligeiramente deslocada à esquerda para máxima visibilidade na bandeja
-            bx = high - badge_w - (high * 0.07)
-            by = high * 0.03
+            bx = high - badge_w
+            by = 0
             rect = QRectF(bx, by, badge_w, badge_h)
 
-            border_w = max(2.0, high * 0.05)
+            border_w = max(2.0, high * 0.04)
+            rect = rect.adjusted(border_w / 2, border_w / 2, -border_w / 2, -border_w / 2)
             p.setPen(QPen(QColor(255, 255, 255), border_w))
-            p.setBrush(QBrush(QColor("#E53935"))) # Vermelho vibrante
-            r = badge_h / 2.0
+            p.setBrush(QBrush(QColor("#FF1F1F"))) # Vermelho vibrante
+            r = rect.height() / 2.0
             p.drawRoundedRect(rect, r, r)
 
             p.setPen(QColor(255, 255, 255))
             font = QFont("DejaVu Sans, Arial, sans-serif")
             font.setBold(True)
-            font.setPixelSize(int(badge_h * 0.65))
+            font.setPixelSize(int(badge_h * (0.74 if len(text) == 1 else 0.62)))
             p.setFont(font)
             p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
-        else:
-            # 100% limpo, perfeitamente redondo e nítido
-            renderer.render(p, QRectF(0, 0, high, high))
 
         p.end()
         return pix.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
@@ -382,13 +567,15 @@ try:
             icon.addPixmap(render_whatsapp_window_pixmap(size))
         return icon
 
+    _wa_state = {"dnd": False, "count": 0}
+
     def create_whatsapp_tray_icon(count=0):
-        """Ícone da bandeja do sistema com badge vermelho ligeiramente deslocado à esquerda."""
-        if count <= 0:
-            return create_whatsapp_clean_icon()
+        """Ícone da bandeja do sistema com badge vermelho ligeiramente deslocado à esquerda.
+        Em modo Não Perturbe o badge nunca é mostrado."""
         icon = QIcon()
-        for size in (16, 20, 22, 24, 32, 48, 64, 128):
-            icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
+        show_badge = count > 0 and not _wa_state["dnd"]
+        for size in (16, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40, 44, 48, 56, 64, 72, 96, 128):
+            icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=show_badge))
         return icon
 
     def create_whatsapp_window_icon(count=0):
@@ -396,24 +583,88 @@ try:
         - Tamanhos 16 e 22 (barra de títulos/menu da janela) usam a versão otimizada limpa.
         - Tamanhos >= 24 (barra de tarefas e dock) usam o badge com notificação.
         """
-        if count <= 0:
-            return create_whatsapp_clean_icon()
-        icon = QIcon()
-        for size in (16, 20, 22):
-            icon.addPixmap(render_whatsapp_window_pixmap(size))
-        for size in (24, 32, 48, 64, 128, 256):
-            icon.addPixmap(render_whatsapp_pixmap(size, count=count, allow_badge=True))
-        return icon
+        # O ícone da barra de tarefas/janela nunca mostra notificações:
+        # somente o ícone da bandeja (painel superior) exibe o balão vermelho.
+        return create_whatsapp_clean_icon()
 
     # Redefine TrayIcon.getIcon para a bandeja
     TrayIcon.getIcon = staticmethod(lambda theme=TrayIcon.Type.Default, qtd=0: create_whatsapp_tray_icon(qtd))
 
     # A janela principal e o aplicativo definem o ícone oficial nítido assim que QApplication é criado
+    # --- Modo Não Perturbe: sem balão vermelho e sem nenhum som (mensagens e chamadas) ---
+    import weakref
+    from PyQt6.QtCore import QTimer
+    from PyQt6.QtDBus import QDBusConnection, QDBusInterface
+    from PyQt6.QtWebEngineCore import QWebEnginePage
+
+    _wa_pages = weakref.WeakSet()
+    orig_page_init = QWebEnginePage.__init__
+    def patched_page_init(self, *a, **k):
+        orig_page_init(self, *a, **k)
+        self._wa_want_muted = False
+        try:
+            _wa_pages.add(self)
+            if _wa_state["dnd"]:
+                _call_page(self, "setAudioMuted", True)
+        except Exception:
+            pass
+    QWebEnginePage.__init__ = patched_page_init
+
+    _orig_page_set_muted = QWebEnginePage.setAudioMuted
+    def _call_page(page, name, value):
+        fn = _orig_page_set_muted
+        if hasattr(fn, "__get__"):
+            return fn.__get__(page, type(page))(value)
+        return fn(page, value)
+    def patched_set_audio_muted(self, muted):
+        self._wa_want_muted = bool(muted)
+        return _call_page(self, "setAudioMuted", bool(muted) or _wa_state["dnd"])
+    QWebEnginePage.setAudioMuted = patched_set_audio_muted
+
+    def _wa_apply_dnd(dnd):
+        _wa_state["dnd"] = dnd
+        for pg in list(_wa_pages):
+            try:
+                _call_page(pg, "setAudioMuted", bool(getattr(pg, "_wa_want_muted", False)) or dnd)
+            except Exception:
+                pass
+        try:
+            from zapzap.features.tray.sys_tray_manager import SysTrayManager as _STM
+            _inst = _STM.instance()
+            _inst._tray.setIcon(create_whatsapp_tray_icon(_wa_state["count"]))
+        except Exception:
+            pass
+
+    def _wa_start_dnd_monitor(app):
+        iface = QDBusInterface("org.freedesktop.Notifications", "/org/freedesktop/Notifications",
+                               "org.freedesktop.DBus.Properties", QDBusConnection.sessionBus())
+        def tick():
+            try:
+                r = iface.call("Get", "org.freedesktop.Notifications", "Inhibited")
+                args = r.arguments()
+                dnd = bool(args[0]) if args else False
+            except Exception:
+                return
+            if dnd != _wa_state["dnd"]:
+                _wa_apply_dnd(dnd)
+            elif dnd:
+                _wa_apply_dnd(True)  # reforça o mudo em páginas novas
+        timer = QTimer(app)
+        timer.timeout.connect(tick)
+        timer.start(1500)
+        app._wa_dnd_timer = timer
+        app._wa_dnd_iface = iface
+        tick()
+
     orig_app_init = QApplication.__init__
     def patched_app_init(self, *args, **kwargs):
         orig_app_init(self, *args, **kwargs)
         try:
             self.setWindowIcon(create_whatsapp_clean_icon())
+        except Exception:
+            pass
+        try:
+            _wa_start_dnd_monitor(self)
         except Exception:
             pass
     QApplication.__init__ = patched_app_init
@@ -426,6 +677,7 @@ try:
         orig_sys_tray_set_icon = SysTrayManager._set_icon
         def patched_sys_tray_set_icon(self, icon_type, number_notifications=0):
             orig_sys_tray_set_icon(self, icon_type, number_notifications)
+            _wa_state["count"] = number_notifications
             self._tray.setIcon(create_whatsapp_tray_icon(number_notifications))
             win_icon = create_whatsapp_window_icon(number_notifications)
             orig_app_set_icon(win_icon)
@@ -445,6 +697,8 @@ try:
         if not title or "ZapZap" in title:
             title = title.replace("ZapZap", "WhatsApp") if title else "WhatsApp"
         orig_titlebar_init(self, window, title, button_theme, settings)
+        self.title_label._wa_keep = True
+        _orig_label_settext(self.title_label, "WhatsApp")
     _TitleBar.__init__ = patched_titlebar_init
 
     orig_main_init = MainWindowView.__init__
@@ -462,7 +716,199 @@ try:
         self.setWindowIcon(create_whatsapp_clean_icon())
         if hasattr(self, "title_bar") and hasattr(self.title_bar, "title_label"):
             self.title_bar.title_label.setText("WhatsApp")
+        # Move a barra de menus (Arquivo, Exibir...) para a barra de título da janela
+        try:
+            mb = inner_window.menubar
+            tb = self.title_bar
+            mb.setParent(tb)
+            mb.setNativeMenuBar(False)
+            mb.setMaximumHeight(16777215)
+            mb.setStyleSheet("QMenuBar { background: transparent; border: none; padding: 0px; } QMenuBar::item { padding: 6px 8px; margin: 2px 0px; }")
+            tb._menubar_widget = mb
+            tb.layout.setContentsMargins(0, 0, 0, 0)
+            tb.layout.insertWidget(0, mb)
+            mb.show()
+        except Exception:
+            pass
     ClientSideWindow.__init__ = patched_csr_init
+
+    # Mantém a barra de menus no lugar quando a barra de título reorganiza o layout
+    orig_rebuild_layout = _TitleBar._rebuild_layout
+    def patched_rebuild_layout(self):
+        orig_rebuild_layout(self)
+        mb = getattr(self, "_menubar_widget", None)
+        if mb is not None:
+            self.layout.insertWidget(0, mb)
+    _TitleBar._rebuild_layout = patched_rebuild_layout
+
+    # --- Barra de título: título centralizado, botões estilo Antigravity e linha verde ---
+    from PyQt6.QtCore import QPointF
+    from PyQt6.QtGui import QPalette
+
+    WA_GREEN = QColor("#04594D")
+    TITLE_OFFSET_X = 12      # leve deslocamento à direita do centro exato
+    BTN_W, BTN_H = 46, 40
+
+    def _ctrl_pixmap(kind, color):
+        dpr = 2
+        px = QPixmap(10 * dpr, 10 * dpr)
+        px.fill(Qt.GlobalColor.transparent)
+        px.setDevicePixelRatio(dpr)
+        pt = QPainter(px)
+        pt.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        pen = QPen(color, 1.0)
+        pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+        pt.setPen(pen)
+        if kind == "min":
+            pt.drawLine(QPointF(0, 5.5), QPointF(10, 5.5))
+        elif kind == "max":
+            pt.drawRect(QRectF(0.5, 0.5, 9, 9))
+        elif kind == "restore":
+            pt.drawRect(QRectF(0.5, 2.5, 7, 7))
+            pt.drawLine(QPointF(2.5, 2.5), QPointF(2.5, 0.5))
+            pt.drawLine(QPointF(2.5, 0.5), QPointF(9.5, 0.5))
+            pt.drawLine(QPointF(9.5, 0.5), QPointF(9.5, 7.5))
+            pt.drawLine(QPointF(9.5, 7.5), QPointF(7.5, 7.5))
+        else:  # close
+            pt.drawLine(QPointF(0, 0), QPointF(10, 10))
+            pt.drawLine(QPointF(10, 0), QPointF(0, 10))
+        pt.end()
+        return px
+
+    def _ctrl_icon(kind, normal, hover):
+        icon = QIcon()
+        icon.addPixmap(_ctrl_pixmap(kind, normal), QIcon.Mode.Normal)
+        icon.addPixmap(_ctrl_pixmap(kind, hover), QIcon.Mode.Active)
+        return icon
+
+    def _style_title_buttons(tb):
+        pal = tb.palette()
+        fg = pal.color(QPalette.ColorRole.WindowText)
+        white = QColor(255, 255, 255)
+        maximized = tb.host_window.isMaximized()
+        for btn, kind, hov in (
+            (tb.minimize_button, "min", fg),
+            (tb.maximize_button, "restore" if maximized else "max", fg),
+            (tb.close_button, "close", white),
+        ):
+            btn.setText("")
+            btn.setIcon(_ctrl_icon(kind, fg, hov))
+            btn.setIconSize(QSize(10, 10))
+            btn.setFixedSize(BTN_W, BTN_H)
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+    orig_apply_btn_theme = _TitleBar._apply_button_theme
+    def patched_apply_btn_theme(self):
+        orig_apply_btn_theme(self)
+        _style_title_buttons(self)
+    _TitleBar._apply_button_theme = patched_apply_btn_theme
+
+    orig_csr_apply_theme = ClientSideWindow._apply_theme
+    def patched_csr_apply_theme(self):
+        orig_csr_apply_theme(self)
+        self.setStyleSheet(self.styleSheet() + """
+            QPushButton#csrWindowButton, QPushButton#csrWindowCloseButton {
+                background: transparent; border: none; border-radius: 0px; padding: 0px;
+            }
+            QPushButton#csrWindowButton:hover { background: rgba(128, 128, 128, 55); }
+            QPushButton#csrWindowButton:pressed { background: rgba(128, 128, 128, 90); }
+            QPushButton#csrWindowCloseButton:hover { background: #e81123; border-top-right-radius: 8px; }
+            QPushButton#csrWindowCloseButton:pressed { background: #f1707a; border-top-right-radius: 8px; }
+        """)
+        _style_title_buttons(self.title_bar)
+    ClientSideWindow._apply_theme = patched_csr_apply_theme
+
+    orig_csr_change = ClientSideWindow.changeEvent
+    def patched_csr_change(self, event):
+        orig_csr_change(self, event)
+        if event.type() == QEvent.Type.WindowStateChange and hasattr(self, "title_bar"):
+            _style_title_buttons(self.title_bar)
+    ClientSideWindow.changeEvent = patched_csr_change
+
+    # Botões colados na borda direita
+    orig_rebuild_for_title = _TitleBar._rebuild_layout
+    def patched_rebuild_title(self):
+        orig_rebuild_for_title(self)
+        lay = self.layout
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        # título fora do layout para poder ficar centralizado na janela inteira
+        lay.removeWidget(self.title_label)
+        self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.title_label.adjustSize()
+        _center_title(self)
+    _TitleBar._rebuild_layout = patched_rebuild_title
+
+    def _center_title(tb):
+        lbl = tb.title_label
+        lbl.adjustSize()
+        x = (tb.width() - lbl.width()) // 2 + TITLE_OFFSET_X
+        y = (tb.height() - lbl.height()) // 2
+        # nunca invadir os menus (à esquerda) nem os botões (à direita)
+        mb = getattr(tb, "_menubar_widget", None)
+        left_limit = (mb.geometry().right() + 24) if mb is not None else 0
+        right_limit = tb.width() - 3 * BTN_W - 12
+        x = max(x, left_limit)
+        lbl.setVisible(x + lbl.width() <= right_limit)
+        lbl.move(x, max(0, y))
+        lbl.raise_()
+
+
+    orig_tb_resize = _TitleBar.resizeEvent
+    def patched_tb_resize(self, event):
+        orig_tb_resize(self, event)
+        _center_title(self)
+    _TitleBar.resizeEvent = patched_tb_resize
+
+    # Linha verde de ponta a ponta da janela (inclui as margens laterais da janela)
+    class _GreenLine(QWidget):
+        def paintEvent(self, _e):
+            p = QPainter(self)
+            p.fillRect(self.rect(), WA_GREEN)
+            p.end()
+
+    def _place_green_line(win):
+        ln = getattr(win, "_wa_line", None)
+        tb = getattr(win, "title_bar", None)
+        if ln is None or tb is None:
+            return
+        y = tb.mapTo(win, QPoint(0, 0)).y() + tb.height() - 1
+        ln.setGeometry(0, y, win.width(), 1)
+        ln.raise_()
+
+    orig_csr_init2 = ClientSideWindow.__init__
+    def patched_csr_init2(self, *a, **k):
+        orig_csr_init2(self, *a, **k)
+        # Janela totalmente preenchida: sem margem transparente nem cantos vazados
+        try:
+            self.layout().setContentsMargins(0, 0, 0, 0)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+            self.setAutoFillBackground(True)
+        except Exception:
+            pass
+        self._wa_line = _GreenLine(self)
+        self._wa_line.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self._wa_line.show()
+        _place_green_line(self)
+    ClientSideWindow.__init__ = patched_csr_init2
+
+    def patched_csr_paint(self, _event):
+        p = QPainter(self)
+        p.fillRect(self.rect(), self.palette().window())
+        p.end()
+    ClientSideWindow.paintEvent = patched_csr_paint
+
+    orig_csr_resize = ClientSideWindow.resizeEvent
+    def patched_csr_resize(self, event):
+        orig_csr_resize(self, event)
+        _place_green_line(self)
+    ClientSideWindow.resizeEvent = patched_csr_resize
+
+    # Janela com barra de título própria (sem ícone) e menus fora do menu global do Plasma
+    from PyQt6.QtCore import QCoreApplication
+    from zapzap.core.config.settings.appearance import AppearanceSettings
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeMenuBar, True)
+    AppearanceSettings.csr_enabled = property(lambda self: True, AppearanceSettings.csr_enabled.fset)
 
     # 5. Barra de Menus da Janela Nativa (Sem distorção de atalhos e menus)
     orig_main_retranslate = MainWindowView.retranslate_ui

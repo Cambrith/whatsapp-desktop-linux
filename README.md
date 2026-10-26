@@ -22,13 +22,15 @@
   - **WhatsApp Web (DOM / Navegador)**: Injeção de locale nativo no `DocumentCreation` e tradutor contínuo no `DocumentReady`, traduzindo campos de busca, abas de filtro, menus de contexto, rodapés de criptografia e botões.
 - 🎨 **Ícones Vetoriais Otimizados e Nítidos**:
   - **Menu da Janela / Barra de Título (KWin/CSD)**: Ícone exclusivo de alto contraste e preenchimento perfeito em miniaturas (16px a 24px), garantindo nitidez sem serrilhado ou compressão em temas escuros e claros.
-  - **Bandeja do Sistema (Systray)**: Logo oficial com badge circular vermelho suave no canto superior direito, perfeitamente calibrado com recuo lateral para máxima visibilidade e sem sobrepor o telefone branco.
-  - **Barra de Tarefas / Dock**: Identificação visual limpa com contador integrado e sincronizado.
+  - **Bandeja do Sistema (Systray)**: Logo ampliado e nítido (ícones em vários tamanhos, renderizados em super-sampling 8x) com badge vermelho pequeno no canto superior direito mostrando o número de mensagens.
+  - **Barra de Tarefas / Janela**: Ícone limpo, sem contador; as notificações aparecem apenas na bandeja.
+- 🚀 **Inicia com o sistema, escondido**: o instalador cria um autostart (`--hideStart`) que abre o app só na bandeja, sem abrir a janela.
+- 🔕 **Respeita o Não Perturbe do KDE**: com o modo ativo, o badge some da bandeja e todo o áudio (mensagens e ligações) é silenciado; ao desativar, tudo volta ao normal.
 - 🚫 **Livre de Distrações**:
   - Remoção completa de banners e telas de solicitação de apoio/doação do backend ZapZap.
   - Rebranding 100% limpo com nome oficial "WhatsApp".
 - ⚡ **Desempenho e Leveza**:
-  - Renderização direta via `QSvgRenderer` com *super-sampling* 4x em memória, garantindo bordas suaves e anti-aliasing de nível gráfico profissional.
+  - Renderização direta via `QSvgRenderer` com *super-sampling* 8x em memória, garantindo bordas suaves e anti-aliasing de nível gráfico profissional.
 
 ---
 
